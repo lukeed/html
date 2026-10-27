@@ -121,7 +121,7 @@ The tree follows htmlparser2, not the WHATWG tree construction algorithm. Browse
 
 > Bun 1.4.4 and Node v26.12.1 on Apple M1 Max, 2026-10-27. 12 real pages, 4.79 MB in total. Memory is retained heap on Node. See [`bench/readme.md`](bench/readme.md) for details.
 
-```
+```txt
 Benchmark :: parse (4.79 MB)    Bun       Node       Memory
   @lukeed/html                  11.8ms    12.5ms     5.5MB
   @lukeed/html, read all        30.1ms    45.9ms     17.5MB

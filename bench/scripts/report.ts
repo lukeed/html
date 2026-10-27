@@ -117,7 +117,7 @@ function long(bun: Result, node: Result): string {
 			columns,
 			rows,
 		);
-		return `### ${suite.title}\n\n${suite.about}\n\n\`\`\`\n${table}\n\`\`\``;
+		return `### ${suite.title}\n\n${suite.about}\n\n\`\`\`txt\n${table}\n\`\`\``;
 	}).join("\n\n");
 }
 
@@ -149,7 +149,7 @@ let summary = [
 	"",
 	`> ${environment(bun, node)} ${bun.pages} real pages, ${size(bun.bytes)} in total. Memory is retained heap on Node. See [\`bench/readme.md\`](bench/readme.md) for details.`,
 	"",
-	"```",
+	"```txt",
 	short(bun, node),
 	"```",
 	"",

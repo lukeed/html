@@ -44,7 +44,7 @@ Every workload runs on all 12 pages per iteration, 4.79 MB in total:
 
 Parse each page into a full tree and keep it. @lukeed/html reads attributes and text lazily, so its "read all" row also reads every attribute and text value, which is the work the other parsers always do.
 
-```
+```txt
 Benchmark :: parse (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99        Memory
   @lukeed/html                  11.8ms     12.2ms    13.1ms    12.5ms      12.5ms     14.4ms     5.5MB
   @lukeed/html, read all        30.1ms     31.0ms    31.4ms    45.9ms      46.0ms     51.6ms     17.5MB
@@ -60,7 +60,7 @@ Benchmark :: parse (4.79 MB)    Bun avg    p75       p99       Node avg    p75  
 
 Parse each page, then read what an SEO linter needs: the `head > title` text, the `content` of `meta[name=description]` and `meta[name=viewport]`, the `href` of `link[rel=canonical]` and every `a`, and the `alt` of every `img`. Streaming candidates register the same selectors and never build a tree.
 
-```
+```txt
 Benchmark :: parse + query (4.79 MB)      Bun avg    p75       p99       Node avg    p75        p99
   @lukeed/html                            18.2ms     18.4ms    19.1ms    22.3ms      22.9ms     26.7ms
   @lukeed/html/mutable                    24.2ms     24.4ms    24.6ms    28.5ms      29.0ms     31.1ms
@@ -75,7 +75,7 @@ Benchmark :: parse + query (4.79 MB)      Bun avg    p75       p99       Node av
 
 Parse each page and serialize it again with no edits. Only libraries that can serialize a tree are listed.
 
-```
+```txt
 Benchmark :: parse + stringify (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99
   @lukeed/html/mutable                      13.7ms     13.7ms    13.9ms    15.2ms      15.3ms     16.3ms
   ultrahtml                                 41.5ms     41.7ms    42.2ms    80.4ms      89.0ms     92.0ms
@@ -87,7 +87,7 @@ Benchmark :: parse + stringify (4.79 MB)    Bun avg    p75       p99       Node 
 
 Parse each page, set `rel="noopener"` on every `a[href]`, set `alt=""` on every `img` without one, replace the `<title>` text, then serialize. ultrahtml filters images by hand, because its selector parser throws on `img:not([alt])` under Bun.
 
-```
+```txt
 Benchmark :: parse + edit + stringify (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99
   @lukeed/html/mutable                             33.4ms     33.6ms    34.4ms    44.1ms      45.1ms     46.3ms
   lol-html (wasm), streaming                       47.9ms     48.0ms    48.4ms    63.8ms      64.4ms     64.8ms

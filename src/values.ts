@@ -22,6 +22,9 @@ const LITERAL = new Set([
  * any duplicate names wins. Values are entity-decoded.
  */
 export function attributes(t: Tree, id: number): Record<string, string> {
+	let cached = t.attrs[id];
+	if (cached) return cached;
+
 	let output: Record<string, string> = {};
 	let end = t.from[id] - 1;
 
@@ -35,6 +38,7 @@ export function attributes(t: Tree, id: number): Record<string, string> {
 		output[key] = raw.includes("&") ? decodeHTMLAttribute(raw) : raw;
 	}
 
+	t.attrs[id] = Object.freeze(output);
 	return output;
 }
 

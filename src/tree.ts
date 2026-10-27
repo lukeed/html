@@ -30,6 +30,8 @@ export type Tree = {
 	to: number[];
 	/** Where the attribute segment of an element begins. */
 	head: number[];
+	/** Parsed attributes, filled on first read. */
+	attrs: (Record<string, string> | undefined)[];
 };
 
 const RAW = new Set([
@@ -235,6 +237,7 @@ export function build(source: string): Tree {
 		from: [0],
 		to: [n],
 		head: [0],
+		attrs: [],
 	};
 
 	let stack = [0];

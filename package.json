@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "@lukeed/html",
   "repository": "lukeed/html",
   "description": "A fast HTML parser with source offsets and CSS selectors",

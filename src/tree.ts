@@ -17,19 +17,20 @@ export type Kind =
  */
 export type Tree = {
 	source: string;
-	kind: Kind[];
+	/** A {@link Kind} per node. */
+	kind: Uint8Array;
 	name: string[];
-	parent: number[];
+	parent: Int32Array;
 	/** First id after this node's subtree. */
-	stop: number[];
+	stop: Int32Array;
 	/** Outer source range. */
-	start: number[];
-	end: number[];
+	start: Int32Array;
+	end: Int32Array;
 	/** Inner range: element content, text value, or comment body. */
-	from: number[];
-	to: number[];
+	from: Int32Array;
+	to: Int32Array;
 	/** Where the attribute segment of an element begins. */
-	head: number[];
+	head: Int32Array;
 	/** Parsed attributes as `[name, value, ...]`, filled on first read. */
 	pairs: (string[] | undefined)[];
 	/** Frozen attribute records, filled on first read of `attributes`. */
@@ -221,6 +222,12 @@ function tagEnd(source: string, from: number): number {
 	return -1;
 }
 
+function grow<T extends Uint8Array | Int32Array>(column: T, size: number): T {
+	let next = new (column.constructor as new (size: number) => T)(size);
+	next.set(column);
+	return next;
+}
+
 /**
  * Find the `</name` that closes a raw text element, ignoring case.
  */
@@ -245,21 +252,19 @@ function closing(source: string, name: string, from: number): number {
  */
 export function build(source: string): Tree {
 	let n = source.length;
-	let tree: Tree = {
-		source,
-		kind: [DOCUMENT],
-		name: [""],
-		parent: [-1],
-		stop: [0],
-		start: [0],
-		end: [n],
-		from: [0],
-		to: [n],
-		head: [0],
-		pairs: [],
-		attrs: [],
-		tags: undefined,
-	};
+	let size = 1;
+	let capacity = Math.max(64, n >> 4);
+	let kind = new Uint8Array(capacity);
+	let names: string[] = [""];
+	let parent = new Int32Array(capacity);
+	let stop = new Int32Array(capacity);
+	let start = new Int32Array(capacity);
+	let end = new Int32Array(capacity);
+	let from = new Int32Array(capacity);
+	let to = new Int32Array(capacity);
+	let head = new Int32Array(capacity);
+	parent[0] = -1;
+	end[0] = to[0] = n;
 
 	let stack = [0];
 	let contexts: boolean[] = [];
@@ -267,24 +272,35 @@ export function build(source: string): Tree {
 	let i = 0;
 
 	let add = (
-		kind: Kind,
-		name: string,
-		start: number,
-		end: number,
-		from: number,
-		to: number,
-		head: number,
+		type: Kind,
+		tag: string,
+		outer: number,
+		close: number,
+		inner: number,
+		until: number,
+		attrs: number,
 	): number => {
-		let id = tree.kind.length;
-		tree.kind.push(kind);
-		tree.name.push(name);
-		tree.parent.push(stack[stack.length - 1]);
-		tree.stop.push(id + 1);
-		tree.start.push(start);
-		tree.end.push(end);
-		tree.from.push(from);
-		tree.to.push(to);
-		tree.head.push(head);
+		if (size === capacity) {
+			capacity *= 2;
+			kind = grow(kind, capacity);
+			parent = grow(parent, capacity);
+			stop = grow(stop, capacity);
+			start = grow(start, capacity);
+			end = grow(end, capacity);
+			from = grow(from, capacity);
+			to = grow(to, capacity);
+			head = grow(head, capacity);
+		}
+		let id = size++;
+		kind[id] = type;
+		names.push(tag);
+		parent[id] = stack[stack.length - 1];
+		stop[id] = id + 1;
+		start[id] = outer;
+		end[id] = close;
+		from[id] = inner;
+		to[id] = until;
+		head[id] = attrs;
 		return id;
 	};
 
@@ -294,11 +310,10 @@ export function build(source: string): Tree {
 
 	let pop = (at: number, inner: number): void => {
 		let id = stack.pop()!;
-		tree.end[id] = at;
-		tree.to[id] = inner;
-		tree.stop[id] = tree.kind.length;
-		let name = tree.name[id];
-		if (FOREIGN.has(name) || INTEGRATION.has(name)) contexts.pop();
+		end[id] = at;
+		to[id] = inner;
+		stop[id] = size;
+		if (FOREIGN.has(names[id]) || INTEGRATION.has(names[id])) contexts.pop();
 	};
 
 	while (i < n) {
@@ -358,7 +373,7 @@ export function build(source: string): Tree {
 			}
 
 			let pos = stack.length - 1;
-			while (pos > 0 && tree.name[stack[pos]] !== name) pos--;
+			while (pos > 0 && names[stack[pos]] !== name) pos--;
 
 			if (pos > 0) {
 				while (stack.length - 1 > pos) pop(lt, lt);
@@ -392,14 +407,11 @@ export function build(source: string): Tree {
 		if (contexts.at(-1)) name = SVG.get(lower) ?? lower;
 		else name = lower === "image" ? "img" : lower;
 
-		if (name === "form" && stack.some((x) => tree.name[x] === "form")) continue;
+		if (name === "form" && stack.some((x) => names[x] === "form")) continue;
 
 		let implies = IMPLIES.get(name);
 		if (implies) {
-			while (
-				stack.length > 1 &&
-				implies.has(tree.name[stack[stack.length - 1]])
-			) {
+			while (stack.length > 1 && implies.has(names[stack[stack.length - 1]])) {
 				pop(lt, lt);
 			}
 		}
@@ -427,7 +439,21 @@ export function build(source: string): Tree {
 
 	flush(n);
 	while (stack.length > 1) pop(n, n);
-	tree.stop[0] = tree.kind.length;
+	stop[0] = size;
 
-	return tree;
+	return {
+		source,
+		kind: kind.slice(0, size),
+		name: names,
+		parent: parent.slice(0, size),
+		stop: stop.slice(0, size),
+		start: start.slice(0, size),
+		end: end.slice(0, size),
+		from: from.slice(0, size),
+		to: to.slice(0, size),
+		head: head.slice(0, size),
+		pairs: [],
+		attrs: [],
+		tags: undefined,
+	};
 }

@@ -14,6 +14,19 @@
 $ bun add @lukeed/html
 ```
 
+## Size
+
+Minified and gzipped, each module on its own. The only dependency is [`entities`](https://github.com/fb55/entities), which holds the HTML entity tables. Run `bun run build --readme` to update this table.
+
+<!-- size:start -->
+
+| Module                 | Size   | With dependencies |
+| ---------------------- | ------ | ----------------- |
+| `@lukeed/html`         | 5.2 kB | 20.6 kB           |
+| `@lukeed/html/mutable` | 6.4 kB | 21.8 kB           |
+
+<!-- size:end -->
+
 ## Usage
 
 ```ts

@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import * as corpus from "./corpus";
 
-const OUTFILE = join(import.meta.dirname, "..", ".build", "node.js");
+const OUTFILE = join(import.meta.dirname, "..", "dist", "node.js");
 
 let added = await corpus.fill();
 console.log(

@@ -5,7 +5,7 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "bun": "bun scripts/run.ts",
-    "node": "node --expose-gc .build/node.js",
+    "node": "node --expose-gc dist/node.js",
     "report": "bun scripts/report.ts",
     "compare": "bun scripts/compare.ts",
     "all": "bun run build && bun run bun && bun run node && bun run report"

@@ -419,6 +419,34 @@ export function matches(t: Tree, id: number, list: Selector): boolean {
 }
 
 /**
+ * Candidate element ids for `list`, in source order: only ids with a
+ * matching tag when every selector names one, else `undefined`.
+ */
+function candidates(t: Tree, list: Selector): number[] | undefined {
+	let names = new Set<string>();
+	for (let rule of list) {
+		let last = rule.compounds[rule.compounds.length - 1];
+		if (!last.tag) return;
+		names.add(last.tag);
+		names.add(last.raw);
+	}
+
+	if (!t.tags) {
+		t.tags = new Map();
+		for (let id = 1; id < t.kind.length; id++) {
+			if (t.kind[id] !== tree.ELEMENT) continue;
+			let found = t.tags.get(t.name[id]);
+			if (found) found.push(id);
+			else t.tags.set(t.name[id], [id]);
+		}
+	}
+
+	let output: number[] = [];
+	for (let name of names) output = output.concat(t.tags.get(name) ?? []);
+	return names.size > 1 ? output.sort((a, b) => a - b) : output;
+}
+
+/**
  * Element ids inside `root` that match `list`, in source order.
  * Stops after `limit` matches.
  */
@@ -429,7 +457,22 @@ export function all(
 	limit = Infinity,
 ): number[] {
 	let output: number[] = [];
-	for (let id = root + 1; id < t.stop[root]; id++) {
+	let stop = t.stop[root];
+	let ids = candidates(t, list);
+
+	if (ids) {
+		for (let id of ids) {
+			if (id <= root) continue;
+			if (id >= stop) break;
+			if (matches(t, id, list)) {
+				output.push(id);
+				if (output.length >= limit) break;
+			}
+		}
+		return output;
+	}
+
+	for (let id = root + 1; id < stop; id++) {
 		if (t.kind[id] === tree.ELEMENT && matches(t, id, list)) {
 			output.push(id);
 			if (output.length >= limit) break;

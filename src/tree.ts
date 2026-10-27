@@ -32,6 +32,8 @@ export type Tree = {
 	head: number[];
 	/** Parsed attributes, filled on first read. */
 	attrs: (Record<string, string> | undefined)[];
+	/** Element ids by tag name, built on first query. */
+	tags: Map<string, number[]> | undefined;
 };
 
 const RAW = new Set([
@@ -238,6 +240,7 @@ export function build(source: string): Tree {
 		to: [n],
 		head: [0],
 		attrs: [],
+		tags: undefined,
 	};
 
 	let stack = [0];

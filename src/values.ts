@@ -4,8 +4,17 @@ import * as tree from "./tree";
 
 import type { Tree } from "./tree";
 
-const ATTR =
-	/([^\s"'>/=][^\s"'>/=]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+function isSpace(c: number): boolean {
+	return c === 32 || c === 9 || c === 10 || c === 13 || c === 12;
+}
+
+function isBreak(c: number): boolean {
+	return isSpace(c) || c === 47 || c === 61 || c === 62;
+}
+
+function isName(c: number): boolean {
+	return !(isBreak(c) || c === 34 || c === 39);
+}
 
 const LITERAL = new Set([
 	"script",
@@ -26,16 +35,43 @@ export function attributes(t: Tree, id: number): Record<string, string> {
 	if (cached) return cached;
 
 	let output: Record<string, string> = {};
+	let source = t.source;
 	let end = t.from[id] - 1;
+	let i = t.head[id];
 
-	let segment = t.source.slice(t.head[id], end);
-	ATTR.lastIndex = 0;
+	while (i < end) {
+		let c = source.charCodeAt(i);
+		if (isBreak(c) || c === 34 || c === 39) {
+			i++;
+			continue;
+		}
 
-	for (let match; (match = ATTR.exec(segment));) {
-		let key = match[1].toLowerCase();
+		let from = i;
+		while (i < end && isName(source.charCodeAt(i))) i++;
+		let key = source.slice(from, i).toLowerCase();
+
+		let at = i;
+		while (at < end && isSpace(source.charCodeAt(at))) at++;
+
+		let value = "";
+		if (source.charCodeAt(at) === 61) {
+			i = at + 1;
+			while (i < end && isSpace(source.charCodeAt(i))) i++;
+			let quote = source.charCodeAt(i);
+			if (quote === 34 || quote === 39) {
+				let close = source.indexOf(quote === 34 ? '"' : "'", i + 1);
+				if (close === -1 || close > end) close = end;
+				value = source.slice(i + 1, close);
+				i = close + 1;
+			} else {
+				let v = i;
+				while (i < end && !isSpace(source.charCodeAt(i))) i++;
+				value = source.slice(v, i);
+			}
+		}
+
 		if (Object.hasOwn(output, key)) continue;
-		let raw = match[2] ?? match[3] ?? match[4] ?? "";
-		output[key] = raw.includes("&") ? decodeHTMLAttribute(raw) : raw;
+		output[key] = value.includes("&") ? decodeHTMLAttribute(value) : value;
 	}
 
 	t.attrs[id] = Object.freeze(output);

@@ -196,14 +196,29 @@ const IMPLIES = new Map<string, Set<string>>([
 	].map((x): [string, Set<string>] => [x, P]),
 ]);
 
-const TAG_END = /(?:"[^"]*"|'[^']*'|[^"'>])*>/y;
-
 function isAlpha(c: number): boolean {
 	return (c >= 97 && c <= 122) || (c >= 65 && c <= 90);
 }
 
 function isSpace(c: number): boolean {
 	return c === 32 || c === 9 || c === 10 || c === 13 || c === 12;
+}
+
+/**
+ * The offset after the `>` that ends a tag, skipping quoted values, or `-1`
+ * when the tag is not closed.
+ */
+function tagEnd(source: string, from: number): number {
+	let n = source.length;
+	for (let i = from; i < n; i++) {
+		let c = source.charCodeAt(i);
+		if (c === 62) return i + 1;
+		if (c === 34 || c === 39) {
+			i = source.indexOf(c === 34 ? '"' : "'", i + 1);
+			if (i === -1) return -1;
+		}
+	}
+	return -1;
 }
 
 /**
@@ -366,9 +381,8 @@ export function build(source: string): Tree {
 			j++;
 		}
 
-		TAG_END.lastIndex = j;
-		if (!TAG_END.test(source)) break;
-		let k = TAG_END.lastIndex;
+		let k = tagEnd(source, j);
+		if (k === -1) break;
 
 		flush(lt);
 		i = text = k;

@@ -8,7 +8,11 @@
     "node": "bun build index.ts --target node --packages external --outfile .node.js && node --expose-gc .node.js",
     "report": "bun report.ts",
     "corpus": "bun corpus.ts",
-    "compare": "bun compare.ts"
+    "compare": "bun compare.ts",
+    "entities:generate": "bun entities/generate.ts",
+    "entities:diff": "bun entities/diff.ts",
+    "entities:bench": "bun entities/bench.ts",
+    "entities:size": "bun entities/size.ts"
   },
   "devDependencies": {
     "css-select": "7.0.0",

@@ -21,13 +21,13 @@
 
   <g transform="translate(0 300)">
     <text x="158" y="20" class="me">@lukeed/html</text>
-    <rect x="440" y="0" width="32.9" height="24" rx="3" class="heap"/>
-    <text x="482.9" y="17" class="val">5.5MB</text>
+    <rect x="440" y="0" width="29.3" height="24" rx="3" class="heap"/>
+    <text x="479.3" y="17" class="val">4.9MB</text>
   </g>
   <g transform="translate(0 364)">
     <text x="158" y="20" class="me">@lukeed/html/mutable</text>
-    <rect x="440" y="0" width="132.3" height="24" rx="3" class="heap"/>
-    <text x="582.3" y="17" class="val">22.1MB</text>
+    <rect x="440" y="0" width="125.1" height="24" rx="3" class="heap"/>
+    <text x="575.1" y="17" class="val">20.9MB</text>
   </g>
   <g transform="translate(0 428)">
     <text x="158" y="20">ultrahtml</text>

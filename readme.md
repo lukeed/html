@@ -14,18 +14,28 @@
 $ bun add @lukeed/html
 ```
 
-## Size
+## Modes
 
-Minified and gzipped, each module on its own. The only dependency is [`entities`](https://github.com/fb55/entities), which holds the HTML entity tables. Run `bun run build --readme` to update this table.
+There are two "versions" of `@lukeed/html` available:
 
-<!-- size:start -->
+<!-- modes:start -->
 
-| Module                 | Size   | With dependencies |
-| ---------------------- | ------ | ----------------- |
-| `@lukeed/html`         | 5.2 kB | 20.6 kB           |
-| `@lukeed/html/mutable` | 6.4 kB | 21.8 kB           |
+#### `@lukeed/html`
 
-<!-- size:end -->
+> **Size (gzip):** 5.2 kB, or 20.6 kB with `entities`<br>
+> **Availability:** [ES Module](https://unpkg.com/@lukeed/html/dist/index.js)
+
+#### `@lukeed/html/mutable`
+
+> **Size (gzip):** 6.4 kB, or 21.8 kB with `entities`<br>
+> **Availability:** [ES Module](https://unpkg.com/@lukeed/html/dist/mutable/index.js)
+
+<!-- modes:end -->
+
+|                        |       Parse        |     Selectors      |   Source offsets   |     Stringify      |  Edit attributes   | Edit text and children |
+| ---------------------- | :----------------: | :----------------: | :----------------: | :----------------: | :----------------: | :--------------------: |
+| `@lukeed/html`         | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |        :x:         |          :x:           |
+| `@lukeed/html/mutable` | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |   :white_check_mark:   |
 
 ## Usage
 

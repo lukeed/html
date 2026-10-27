@@ -4,8 +4,12 @@
   "name": "@lukeed/html",
   "repository": "lukeed/html",
   "description": "A fast HTML parser with source offsets and CSS selectors",
-  "author": "Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)",
   "license": "MIT",
+  "author": {
+    "name": "Luke Edwards",
+    "email": "luke.edwards05@gmail.com",
+    "url": "https://lukeed.com"
+  },
   "scripts": {
     "build": "bun build.ts",
     "bench": "bun run --cwd bench"

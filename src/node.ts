@@ -78,7 +78,12 @@ export class Document {
 
 	/** @internal */
 	constructor(t: Tree) {
-		this.#ctx = { tree: t, nodes: [], lines: undefined, document: this };
+		this.#ctx = {
+			tree: t,
+			nodes: new Array(t.kind.length),
+			lines: undefined,
+			document: this,
+		};
 	}
 
 	/**

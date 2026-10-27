@@ -453,8 +453,8 @@ export function build(source: string): Tree {
 		from: from.slice(0, size),
 		to: to.slice(0, size),
 		head: head.slice(0, size),
-		pairs: [],
-		attrs: [],
+		pairs: new Array(size),
+		attrs: new Array(size),
 		tags: undefined,
 	};
 }

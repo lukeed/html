@@ -127,6 +127,12 @@ describe("select", () => {
 		expect(() => select.compile('[title="x]')).toThrow(SyntaxError);
 	});
 
+	test("ignores inherited object keys as attributes", () => {
+		for (let selector of ["[constructor]", "[toString]", "[__proto__]"]) {
+			expect(select.all(ours, 0, select.compile(selector))).toEqual([]);
+		}
+	});
+
 	test("caches compiled selectors", () => {
 		expect(select.compile("a > b")).toBe(select.compile("a > b"));
 	});

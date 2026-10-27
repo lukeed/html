@@ -288,135 +288,171 @@ export function compile(input: string): Selector {
 	return list;
 }
 
-function parentElement(t: Tree, id: number): number {
-	let p = t.parent[id];
-	return p > 0 ? p : -1;
-}
+/**
+ * How the engine reads a tree. `C` is shared context, `N` a node handle.
+ * Only elements are ever passed in.
+ */
+export type Adapter<C, N> = {
+	name(c: C, n: N): string;
+	attr(c: C, n: N, key: string): string | undefined;
+	/** The parent element, or `undefined` at the top level. */
+	parent(c: C, n: N): N | undefined;
+	/** Element siblings, including `n`, in order. */
+	siblings(c: C, n: N): N[];
+	/** Whether `n` has no element or text children. */
+	empty(c: C, n: N): boolean;
+};
+
+export type Matcher<C, N> = (c: C, n: N, list: Selector) => boolean;
 
 /**
- * Element siblings of `id`, including `id`, in source order.
+ * Create a selector matcher for one kind of tree.
+ * Each call returns new closures, so each tree kind keeps its own inline caches.
  */
-function siblings(t: Tree, id: number): number[] {
-	let p = t.parent[id];
-	let output: number[] = [];
-	for (let x = p + 1; x < t.stop[p]; x = t.stop[x]) {
-		if (t.kind[x] === tree.ELEMENT) output.push(x);
-	}
-	return output;
-}
+export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
+	let attribute = (c: C, n: N, rule: Attribute): boolean => {
+		let found = adapter.attr(c, n, rule.name);
+		if (found === undefined) return false;
+		if (rule.operator === "") return true;
 
-function attribute(t: Tree, id: number, rule: Attribute): boolean {
-	let found = values.attributes(t, id)[rule.name];
-	if (found == null) return false;
-	if (rule.operator === "") return true;
+		let actual = rule.insensitive ? found.toLowerCase() : found;
+		let expected = rule.insensitive ? rule.value.toLowerCase() : rule.value;
 
-	let actual = rule.insensitive ? found.toLowerCase() : found;
-	let expected = rule.insensitive ? rule.value.toLowerCase() : rule.value;
-
-	switch (rule.operator) {
-		case "=":
-			return actual === expected;
-		case "~=":
-			return (
-				expected !== "" &&
-				!/\s/.test(expected) &&
-				actual.split(/\s+/).includes(expected)
-			);
-		case "|=":
-			return actual === expected || actual.startsWith(expected + "-");
-		case "^=":
-			return expected !== "" && actual.startsWith(expected);
-		case "$=":
-			return expected !== "" && actual.endsWith(expected);
-		case "*=":
-			return expected !== "" && actual.includes(expected);
-	}
-}
-
-function pseudo(t: Tree, id: number, rule: Pseudo): boolean {
-	switch (rule.kind) {
-		case "root":
-			return t.parent[id] === 0;
-		case "empty":
-			for (let x = id + 1; x < t.stop[id]; x = t.stop[x]) {
-				if (t.kind[x] === tree.ELEMENT || t.kind[x] === tree.TEXT) return false;
-			}
-			return true;
-		case "not":
-			return !matches(t, id, rule.list);
-		case "is":
-			return matches(t, id, rule.list);
-		case "nth": {
-			let list = siblings(t, id);
-			if (rule.type) list = list.filter((x) => t.name[x] === t.name[id]);
-			let index = rule.last
-				? list.length - list.indexOf(id)
-				: list.indexOf(id) + 1;
-			if (rule.a === 0) return index === rule.b;
-			let k = (index - rule.b) / rule.a;
-			return k >= 0 && Number.isInteger(k);
+		switch (rule.operator) {
+			case "=":
+				return actual === expected;
+			case "~=":
+				return (
+					expected !== "" &&
+					!/\s/.test(expected) &&
+					actual.split(/\s+/).includes(expected)
+				);
+			case "|=":
+				return actual === expected || actual.startsWith(expected + "-");
+			case "^=":
+				return expected !== "" && actual.startsWith(expected);
+			case "$=":
+				return expected !== "" && actual.endsWith(expected);
+			case "*=":
+				return expected !== "" && actual.includes(expected);
 		}
-	}
-}
+	};
 
-function compound(t: Tree, id: number, rule: Compound): boolean {
-	if (t.kind[id] !== tree.ELEMENT) return false;
-	if (rule.tag && t.name[id] !== rule.tag && t.name[id] !== rule.raw)
-		return false;
+	let pseudo = (c: C, n: N, rule: Pseudo): boolean => {
+		switch (rule.kind) {
+			case "root":
+				return adapter.parent(c, n) === undefined;
+			case "empty":
+				return adapter.empty(c, n);
+			case "not":
+				return !matches(c, n, rule.list);
+			case "is":
+				return matches(c, n, rule.list);
+			case "nth": {
+				let list = adapter.siblings(c, n);
+				if (rule.type) {
+					let name = adapter.name(c, n);
+					list = list.filter((x) => adapter.name(c, x) === name);
+				}
+				let at = list.indexOf(n);
+				let index = rule.last ? list.length - at : at + 1;
+				if (rule.a === 0) return index === rule.b;
+				let k = (index - rule.b) / rule.a;
+				return k >= 0 && Number.isInteger(k);
+			}
+		}
+	};
 
-	if (rule.id || rule.classes.length > 0) {
-		let attrs = values.attributes(t, id);
-		if (rule.id && attrs.id !== rule.id) return false;
+	let compound = (c: C, n: N, rule: Compound): boolean => {
+		if (rule.tag) {
+			let name = adapter.name(c, n);
+			if (name !== rule.tag && name !== rule.raw) return false;
+		}
+
+		if (rule.id && adapter.attr(c, n, "id") !== rule.id) return false;
+
 		if (rule.classes.length > 0) {
-			let names = (attrs.class || "").split(/\s+/);
+			let names = (adapter.attr(c, n, "class") ?? "").split(/\s+/);
 			for (let name of rule.classes) if (!names.includes(name)) return false;
 		}
-	}
 
-	for (let x of rule.attributes) if (!attribute(t, id, x)) return false;
-	for (let x of rule.pseudos) if (!pseudo(t, id, x)) return false;
-	return true;
-}
+		for (let x of rule.attributes) if (!attribute(c, n, x)) return false;
+		for (let x of rule.pseudos) if (!pseudo(c, n, x)) return false;
+		return true;
+	};
 
-function complex(t: Tree, id: number, rule: Complex, index: number): boolean {
-	if (!compound(t, id, rule.compounds[index])) return false;
-	if (index === 0) return true;
+	let complex = (c: C, n: N, rule: Complex, index: number): boolean => {
+		if (!compound(c, n, rule.compounds[index])) return false;
+		if (index === 0) return true;
 
-	let combinator = rule.combinators[index - 1];
+		let combinator = rule.combinators[index - 1];
 
-	if (combinator === ">") {
-		let p = parentElement(t, id);
-		return p !== -1 && complex(t, p, rule, index - 1);
-	}
+		if (combinator === ">") {
+			let p = adapter.parent(c, n);
+			return p !== undefined && complex(c, p, rule, index - 1);
+		}
 
-	if (combinator === " ") {
-		for (let p = parentElement(t, id); p !== -1; p = parentElement(t, p)) {
-			if (complex(t, p, rule, index - 1)) return true;
+		if (combinator === " ") {
+			for (
+				let p = adapter.parent(c, n);
+				p !== undefined;
+				p = adapter.parent(c, p)
+			) {
+				if (complex(c, p, rule, index - 1)) return true;
+			}
+			return false;
+		}
+
+		let list = adapter.siblings(c, n);
+		let at = list.indexOf(n);
+
+		if (combinator === "+")
+			return at > 0 && complex(c, list[at - 1], rule, index - 1);
+
+		for (let x = at - 1; x >= 0; x--) {
+			if (complex(c, list[x], rule, index - 1)) return true;
 		}
 		return false;
-	}
+	};
 
-	let list = siblings(t, id);
-	let at = list.indexOf(id);
+	let matches: Matcher<C, N> = (c, n, list) => {
+		for (let rule of list) {
+			if (complex(c, n, rule, rule.compounds.length - 1)) return true;
+		}
+		return false;
+	};
 
-	if (combinator === "+")
-		return at > 0 && complex(t, list[at - 1], rule, index - 1);
-
-	for (let x = at - 1; x >= 0; x--) {
-		if (complex(t, list[x], rule, index - 1)) return true;
-	}
-	return false;
+	return matches;
 }
 
 /**
  * Whether element `id` matches any selector in `list`.
  */
-export function matches(t: Tree, id: number, list: Selector): boolean {
-	for (let rule of list) {
-		if (complex(t, id, rule, rule.compounds.length - 1)) return true;
-	}
-	return false;
-}
+export const matches: Matcher<Tree, number> = engine<Tree, number>({
+	name: (t, id) => t.name[id],
+	attr(t, id, key) {
+		let attrs = values.attributes(t, id);
+		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
+	},
+	parent(t, id) {
+		let p = t.parent[id];
+		return p > 0 ? p : undefined;
+	},
+	siblings(t, id) {
+		let p = t.parent[id];
+		let output: number[] = [];
+		for (let x = p + 1; x < t.stop[p]; x = t.stop[x]) {
+			if (t.kind[x] === tree.ELEMENT) output.push(x);
+		}
+		return output;
+	},
+	empty(t, id) {
+		for (let x = id + 1; x < t.stop[id]; x = t.stop[x]) {
+			if (t.kind[x] === tree.ELEMENT || t.kind[x] === tree.TEXT) return false;
+		}
+		return true;
+	},
+});
 
 /**
  * Candidate element ids for `list`, in source order: only ids with a

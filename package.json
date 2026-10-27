@@ -7,9 +7,7 @@
   "license": "MIT",
   "author": "Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)",
   "scripts": {
-    "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build src/index.ts src/mutable/index.ts --root src --outdir dist --target node --packages external --splitting --minify",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build": "bun build.ts",
     "bench": "bun run bench:bun && bun run bench:node && bun bench/report.ts",
     "corpus": "bun bench/corpus.ts",
     "bench:node": "bun build bench/index.ts --target node --packages external --outfile bench/.node.js && node --expose-gc bench/.node.js",
@@ -44,6 +42,7 @@
   },
   "devDependencies": {
     "@types/bun": "1.4.4",
+    "@types/node": "22.20.5",
     "css-select": "7.0.0",
     "dom-serializer": "3.1.1",
     "domhandler": "6.0.1",

@@ -116,6 +116,17 @@ describe("select", () => {
 		expect(select.all(ours, 0, select.compile("li"), 2)).toHaveLength(2);
 	});
 
+	test("supports escapes in identifiers and strings", () => {
+		let doc = tree.build(`<a id="a:b" class="1x" title='say "hi"'></a>`);
+		for (let selector of ["#a\\:b", ".\\31 x", '[title="say \\"hi\\""]']) {
+			expect(select.all(doc, 0, select.compile(selector))).toHaveLength(1);
+		}
+	});
+
+	test("rejects an unterminated string", () => {
+		expect(() => select.compile('[title="x]')).toThrow(SyntaxError);
+	});
+
 	test("caches compiled selectors", () => {
 		expect(select.compile("a > b")).toBe(select.compile("a > b"));
 	});

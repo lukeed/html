@@ -180,3 +180,21 @@ describe("stringify()", () => {
 		}
 	});
 });
+
+describe("leaf nodes", () => {
+	let source = "<!doctype html><p>a<!--c--></p>";
+	let doc = html.parse(source);
+
+	test("expose ranges, parent, and document", () => {
+		let p = doc.query("p");
+		let leaves = [...doc.children.slice(0, 1), ...(p?.children ?? [])];
+		expect(leaves.map((x) => x.type)).toEqual(["directive", "text", "comment"]);
+		for (let leaf of leaves) {
+			expect(leaf.document).toBe(doc);
+			expect(html.stringify(leaf)).toBe(source.slice(leaf.start, leaf.end));
+		}
+		expect(leaves.map((x) => x.parent)).toEqual(
+			[doc, p, p].filter((x) => x !== undefined),
+		);
+	});
+});

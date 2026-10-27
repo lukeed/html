@@ -65,4 +65,4 @@ jobs:
           path: dist
 
       - name: Import
-        run: node --input-type=module -e "import { parse, stringify } from '@lukeed/html'; let doc = parse('<p>a &amp; <b>b</b></p>'); if (doc.query('p > b')?.text !== 'b' || doc.query('p')?.text !== 'a & b' || stringify(doc) !== doc.source) process.exit(1)"
+        run: node --input-type=module -e "import { parse, stringify } from '@lukeed/html'; let doc = parse('<p>a &amp; <b>b</b></p>'); if (doc.find('p > b')?.text !== 'b' || doc.find('p')?.text !== 'a & b' || stringify(doc) !== doc.source) process.exit(1)"

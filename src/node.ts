@@ -209,9 +209,7 @@ export class Element {
 	 * parse('<img alt="">').find("img")?.getAttr("ALT"); //=> ""
 	 */
 	getAttr(name: string): string | undefined {
-		let attrs = values.attributes(this.#ctx.tree, this.#id);
-		let key = name.toLowerCase();
-		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
+		return values.attribute(this.#ctx.tree, this.#id, name.toLowerCase());
 	}
 
 	/**
@@ -220,10 +218,8 @@ export class Element {
 	 * parse("<input disabled>").find("input")?.hasAttr("disabled"); //=> true
 	 */
 	hasAttr(name: string): boolean {
-		return Object.hasOwn(
-			values.attributes(this.#ctx.tree, this.#id),
-			name.toLowerCase(),
-		);
+		let key = name.toLowerCase();
+		return values.attribute(this.#ctx.tree, this.#id, key) !== undefined;
 	}
 
 	/**

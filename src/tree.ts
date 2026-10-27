@@ -30,8 +30,10 @@ export type Tree = {
 	to: number[];
 	/** Where the attribute segment of an element begins. */
 	head: number[];
-	/** Parsed attributes, filled on first read. */
-	attrs: (Record<string, string> | undefined)[];
+	/** Parsed attributes as `[name, value, ...]`, filled on first read. */
+	pairs: (string[] | undefined)[];
+	/** Frozen attribute records, filled on first read of `attributes`. */
+	attrs: (Readonly<Record<string, string>> | undefined)[];
 	/** Element ids by tag name, built on first query. */
 	tags: Map<string, number[]> | undefined;
 };
@@ -239,6 +241,7 @@ export function build(source: string): Tree {
 		from: [0],
 		to: [n],
 		head: [0],
+		pairs: [],
 		attrs: [],
 		tags: undefined,
 	};

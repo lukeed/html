@@ -27,14 +27,14 @@ export const LITERAL = new Set([
 ]);
 
 /**
- * Parse the attributes of element `id`. Names are lowercased; the first of
- * any duplicate names wins. Values are entity-decoded.
+ * Parse the attributes of element `id` into `[name, value, ...]`. Names are
+ * lowercased; the first of any duplicate names wins. Values are entity-decoded.
  */
-export function attributes(t: Tree, id: number): Record<string, string> {
-	let cached = t.attrs[id];
+export function pairs(t: Tree, id: number): string[] {
+	let cached = t.pairs[id];
 	if (cached) return cached;
 
-	let output: Record<string, string> = {};
+	let output: string[] = [];
 	let source = t.source;
 	let end = t.from[id] - 1;
 	let i = t.head[id];
@@ -70,12 +70,46 @@ export function attributes(t: Tree, id: number): Record<string, string> {
 			}
 		}
 
-		if (Object.hasOwn(output, key)) continue;
-		output[key] = value.includes("&") ? decodeHTMLAttribute(value) : value;
+		if (find(output, key) !== -1) continue;
+		output.push(key, value.includes("&") ? decodeHTMLAttribute(value) : value);
 	}
 
-	t.attrs[id] = Object.freeze(output);
+	t.pairs[id] = output;
 	return output;
+}
+
+function find(list: string[], key: string): number {
+	for (let i = 0; i < list.length; i += 2) if (list[i] === key) return i;
+	return -1;
+}
+
+/**
+ * The value of attribute `key` on element `id`, where `key` is lowercase.
+ */
+export function attribute(
+	t: Tree,
+	id: number,
+	key: string,
+): string | undefined {
+	let list = pairs(t, id);
+	let i = find(list, key);
+	return i === -1 ? undefined : list[i + 1];
+}
+
+/**
+ * The attributes of element `id` as a frozen record.
+ */
+export function attributes(
+	t: Tree,
+	id: number,
+): Readonly<Record<string, string>> {
+	let cached = t.attrs[id];
+	if (cached) return cached;
+
+	let list = pairs(t, id);
+	let output: Record<string, string> = {};
+	for (let i = 0; i < list.length; i += 2) output[list[i]] = list[i + 1];
+	return (t.attrs[id] = Object.freeze(output));
 }
 
 /**

@@ -430,10 +430,7 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
  */
 export const matches: Matcher<Tree, number> = engine<Tree, number>({
 	name: (t, id) => t.name[id],
-	attr(t, id, key) {
-		let attrs = values.attributes(t, id);
-		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
-	},
+	attr: values.attribute,
 	parent(t, id) {
 		let p = t.parent[id];
 		return p > 0 ? p : undefined;

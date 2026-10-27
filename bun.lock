@@ -13,6 +13,7 @@
         "domhandler": "6.0.1",
         "domutils": "4.0.2",
         "htmlparser2": "12.0.0",
+        "lol-html": "2.3.0",
         "mitata": "1.0.34",
         "node-html-parser": "9.0.5",
         "parse5": "8.0.1",
@@ -85,6 +86,8 @@
     "entities": ["entities@8.1.0", "", {}, "sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA=="],
 
     "htmlparser2": ["htmlparser2@12.0.0", "", { "dependencies": { "domelementtype": "^3.0.0", "domhandler": "^6.0.0", "domutils": "^4.0.2", "entities": "^8.0.0" } }, "sha512-Tz7u1i95/g2x2jz81+x0FBVhBhY5aRTvD3tXXdFaljuNdzDLJ8UGNRrTcj2cgQvAg3iW/h77Fz15nLW0L0CrZw=="],
+
+    "lol-html": ["lol-html@2.3.0", "", {}, "sha512-PJPcXV7bU6UD+K5MowSjMyovdAPGWFWyyQ1BWPFuwBagwgh6HxHXCdpl8N7N+MO4MJjzQTsJIvbKedUT+2MU2A=="],
 
     "mitata": ["mitata@1.0.34", "", {}, "sha512-Mc3zrtNBKIMeHSCQ0XqRLo1vbdIx1wvFV9c8NJAiyho6AjNfMY8bVhbS12bwciUdd1t4rj8099CH3N3NFahaUA=="],
 

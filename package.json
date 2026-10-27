@@ -11,7 +11,9 @@
     "build:js": "bun build src/index.ts --outdir dist --target node --packages external --minify",
     "build:types": "tsc -p tsconfig.build.json",
     "bench": "bun bench/index.ts",
-    "corpus": "bun bench/corpus.ts"
+    "corpus": "bun bench/corpus.ts",
+    "bench:node": "bun build bench/index.ts --target node --packages external --outfile bench/.node.js && node bench/.node.js",
+    "compare": "bun bench/compare.ts"
   },
   "exports": {
     ".": {
@@ -41,6 +43,7 @@
     "domhandler": "6.0.1",
     "domutils": "4.0.2",
     "htmlparser2": "12.0.0",
+    "lol-html": "2.3.0",
     "mitata": "1.0.34",
     "node-html-parser": "9.0.5",
     "parse5": "8.0.1",

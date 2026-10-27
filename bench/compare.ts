@@ -1,5 +1,7 @@
 import { parseDocument } from "htmlparser2";
 
+import * as html from "../src/index";
+import * as mutable from "../src/mutable/index";
 import * as tree from "../src/tree";
 import * as values from "../src/values";
 import * as corpus from "./corpus";
@@ -83,6 +85,35 @@ for (let page of await corpus.load()) {
 	);
 	console.log("  expected:", (expected[index] ?? "<end>").slice(0, 200));
 	console.log("  actual:  ", (actual[index] ?? "<end>").slice(0, 200));
+}
+
+for (let page of await corpus.load()) {
+	let doc = mutable.parse(page.html);
+	let count = doc.all("*").length;
+	for (let a of doc.all("a[href]")) a.set("rel", "noopener");
+	for (let img of doc.all("img:not([alt])")) img.set("alt", "");
+	let title = doc.find("title");
+	if (title) title.text = "Edited";
+
+	let output = mutable.stringify(doc);
+	let again = html.parse(output);
+	let problems = [
+		again.all("*").length !== count &&
+			`element count ${again.all("*").length} != ${count}`,
+		again.all("a[href]:not([rel=noopener])").length > 0 &&
+			"a[href] without rel",
+		again.all("img:not([alt])").length > 0 && "img without alt",
+		title && again.find("title")?.text !== "Edited" && "title text",
+		mutable.stringify(mutable.parse(page.html)) !== page.html &&
+			"unedited round trip",
+	].filter((x) => typeof x === "string");
+
+	if (problems.length === 0) {
+		console.log("ok   edit round trip", page.name);
+		continue;
+	}
+	failed++;
+	console.log("FAIL edit round trip", page.name, problems.join(", "));
 }
 
 process.exitCode = failed > 0 ? 1 : 0;

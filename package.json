@@ -12,7 +12,7 @@
     "build:types": "tsc -p tsconfig.build.json",
     "bench": "bun bench/index.ts",
     "corpus": "bun bench/corpus.ts",
-    "bench:node": "bun build bench/index.ts --target node --packages external --outfile bench/.node.js && node bench/.node.js",
+    "bench:node": "bun build bench/index.ts --target node --packages external --outfile bench/.node.js && node --expose-gc bench/.node.js",
     "compare": "bun bench/compare.ts"
   },
   "exports": {
@@ -44,6 +44,7 @@
   "devDependencies": {
     "@types/bun": "1.4.4",
     "css-select": "7.0.0",
+    "dom-serializer": "3.1.1",
     "domhandler": "6.0.1",
     "domutils": "4.0.2",
     "htmlparser2": "12.0.0",

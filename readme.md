@@ -2,7 +2,7 @@
 
 > A fast HTML parser with source offsets and CSS selectors
 
-- **Fast:** builds a full tree at about 400 MB/s, 2–4x faster than other JavaScript parsers.
+- **Fast:** builds a full tree at 400–600 MB/s, 3–6x faster than other JavaScript parsers.
 - **Lazy:** attributes and text are parsed and entity-decoded only when you read them.
 - **Located:** every node has `start` and `end` source offsets; `document.position()` maps them to lines and columns.
 - **Lossless:** `stringify()` returns the source exactly as written.

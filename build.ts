@@ -3,13 +3,24 @@ import { gzipSync } from "node:zlib";
 
 import { $ } from "bun";
 
-const OUTDIR = "dist";
-const ENTRIES: Record<string, string> = {
-	"@lukeed/html": "src/index.ts",
-	"@lukeed/html/mutable": "src/mutable/index.ts",
+type Mode = {
+	name: string;
+	entry: string;
+	/** Output path, relative to the package root. */
+	file: string;
 };
-const START = "<!-- size:start -->";
-const END = "<!-- size:end -->";
+
+const OUTDIR = "dist";
+const MODES: Mode[] = [
+	{ name: "@lukeed/html", entry: "src/index.ts", file: "dist/index.js" },
+	{
+		name: "@lukeed/html/mutable",
+		entry: "src/mutable/index.ts",
+		file: "dist/mutable/index.js",
+	},
+];
+const START = "<!-- modes:start -->";
+const END = "<!-- modes:end -->";
 
 /**
  * Minified and gzipped size of one entry, bundled alone.
@@ -29,14 +40,14 @@ async function measure(
 	return gzipSync(await result.outputs[0].text()).length;
 }
 
-function kb(bytes: number): string {
-	return `${(bytes / 1024).toFixed(1)} kB`;
+function size(bytes: number): string {
+	return bytes < 1024 ? `${bytes} bytes` : `${(bytes / 1024).toFixed(1)} kB`;
 }
 
 await rm(OUTDIR, { recursive: true, force: true });
 
 let result = await Bun.build({
-	entrypoints: Object.values(ENTRIES),
+	entrypoints: MODES.map((x) => x.entry),
 	root: "src",
 	outdir: OUTDIR,
 	target: "node",
@@ -51,33 +62,28 @@ if (!result.success) {
 }
 
 for (let output of result.outputs) {
-	let size = (output.size / 1024).toFixed(2).padStart(6);
-	console.log(`${size} kB  ${output.path.slice(process.cwd().length + 1)}`);
+	let kb = (output.size / 1024).toFixed(2).padStart(6);
+	console.log(`${kb} kB  ${output.path.slice(process.cwd().length + 1)}`);
 }
 
 await $`bun x tsc -p tsconfig.build.json`;
 
-let cells = [["Module", "Size", "With dependencies"]];
-for (let [name, entry] of Object.entries(ENTRIES)) {
-	cells.push([
-		`\`${name}\``,
-		kb(await measure(entry, "external")),
-		kb(await measure(entry, "bundle")),
-	]);
+let blocks: string[] = [];
+for (let mode of MODES) {
+	let own = size(await measure(mode.entry, "external"));
+	let total = size(await measure(mode.entry, "bundle"));
+	blocks.push(
+		[
+			`#### \`${mode.name}\``,
+			"",
+			`> **Size (gzip):** ${own}, or ${total} with \`entities\`<br>`,
+			`> **Availability:** [ES Module](https://unpkg.com/@lukeed/html/${mode.file})`,
+		].join("\n"),
+	);
 }
 
-let widths = cells[0].map((_, i) =>
-	Math.max(...cells.map((row) => row[i].length)),
-);
-let line = (row: string[]) =>
-	`| ${row.map((x, i) => x.padEnd(widths[i])).join(" | ")} |`;
-let table = [
-	line(cells[0]),
-	line(widths.map((w) => "-".repeat(w))),
-	...cells.slice(1).map(line),
-].join("\n");
-
-console.log(`\nMinified and gzipped:\n${table}`);
+let section = blocks.join("\n\n");
+console.log(`\n${section}`);
 
 if (process.argv.includes("--readme")) {
 	let readme = await readFile("readme.md", "utf8");
@@ -85,6 +91,8 @@ if (process.argv.includes("--readme")) {
 	let b = readme.indexOf(END);
 	if (a === -1 || b === -1)
 		throw new Error(`readme.md needs ${START} and ${END} markers`);
-	let section = `${START}\n\n${table}\n\n`;
-	await writeFile("readme.md", readme.slice(0, a) + section + readme.slice(b));
+	await writeFile(
+		"readme.md",
+		readme.slice(0, a) + `${START}\n\n${section}\n\n` + readme.slice(b),
+	);
 }

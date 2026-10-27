@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1330" height="896" viewBox="0 0 1330 896">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <style>
+    text { font-family: Hack, "DejaVu Sans Mono", Menlo, monospace; font-size: 22px; fill: #abb2bf; white-space: pre; }
+    .c { fill: #5c6370; font-style: italic; }
+    .k { fill: #c678dd; }
+    .s { fill: #98c379; }
+    .v { fill: #e5c07b; }
+    .r { fill: #e06c75; }
+    .m { fill: #56b6c2; }
+  </style>
+  <rect width="1330" height="896" fill="#4a90e2"/>
+  <rect x="110" y="110" width="1110" height="676" rx="10" fill="#282c34" filter="url(#shadow)"/>
+  <circle cx="154" cy="154" r="12" fill="#ff5f56"/>
+  <circle cx="194" cy="154" r="12" fill="#ffbd2e"/>
+  <circle cx="234" cy="154" r="12" fill="#27c93f"/>
+  <g transform="translate(158 234)" xml:space="preserve">
+    <text y="0"><tspan class="c">// example.ts</tspan></text>
+    <text y="72"><tspan class="k">import</tspan> { <tspan class="v">parse</tspan>, <tspan class="v">stringify</tspan> } <tspan class="k">from</tspan> <tspan class="s">"@lukeed/html"</tspan>;</text>
+    <text y="144"><tspan class="k">let</tspan> <tspan class="v">doc</tspan> <tspan class="m">=</tspan> <tspan class="r">parse</tspan>(</text>
+    <text y="180">  <tspan class="s">`&lt;head&gt;&lt;title&gt;Hi &amp;amp; bye&lt;/title&gt;&lt;link rel="canonical" href="/"&gt;&lt;/head&gt;`</tspan>,</text>
+    <text y="216">);</text>
+    <text y="288"><tspan class="r">doc</tspan>.<tspan class="m">find</tspan>(<tspan class="s">"head &gt; title"</tspan>)?.<tspan class="r">text</tspan>; <tspan class="c">//=&gt; "Hi &amp; bye"</tspan></text>
+    <text y="324"><tspan class="r">doc</tspan>.<tspan class="m">find</tspan>(<tspan class="s">"link[rel=canonical]"</tspan>)?.<tspan class="m">getAttr</tspan>(<tspan class="s">"href"</tspan>); <tspan class="c">//=&gt; "/"</tspan></text>
+    <text y="396"><tspan class="k">for</tspan> (<tspan class="k">let</tspan> <tspan class="v">img</tspan> <tspan class="k">of</tspan> <tspan class="r">doc</tspan>.<tspan class="m">all</tspan>(<tspan class="s">"img:not([alt])"</tspan>)) {</text>
+    <text y="432">  <tspan class="k">let</tspan> { <tspan class="v">line</tspan>, <tspan class="v">column</tspan> } <tspan class="m">=</tspan> <tspan class="r">doc</tspan>.<tspan class="m">position</tspan>(<tspan class="r">img</tspan>.<tspan class="r">start</tspan>);</text>
+    <text y="468">  <tspan class="r">console</tspan>.<tspan class="m">log</tspan>(<tspan class="s">`${</tspan><tspan class="r">line</tspan><tspan class="s">}:${</tspan><tspan class="r">column</tspan><tspan class="s">}`</tspan>, <tspan class="r">stringify</tspan>(<tspan class="r">img</tspan>));</text>
+    <text y="504">}</text>
+  </g>
+</svg>

@@ -1,11 +1,11 @@
 {
-  "name": "@lukeed/html",
+  "type": "module",
   "version": "0.0.0",
+  "name": "@lukeed/html",
   "repository": "lukeed/html",
   "description": "A fast HTML parser with source offsets and CSS selectors",
-  "type": "module",
-  "license": "MIT",
   "author": "Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)",
+  "license": "MIT",
   "scripts": {
     "build": "bun build.ts",
     "bench": "bun run --cwd bench"

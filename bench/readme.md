@@ -7,8 +7,8 @@ Bun 1.4.4 and Node v26.12.1 on Apple M1 Max, 2026-10-27.
 ## Running
 
 ```sh
-$ bun run bench corpus   # download the pages once
-$ bun run bench all      # run on Bun and Node, then write this file and the readme summary
+$ bun run bench build    # download missing pages and bundle the Node runner
+$ bun run bench all      # build, run on Bun and Node, then write this file and the readme summary
 $ bun run bench compare  # check correctness against htmlparser2
 ```
 

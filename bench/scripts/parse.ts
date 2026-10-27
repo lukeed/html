@@ -3,8 +3,8 @@ import { parse as nhp } from "node-html-parser";
 import { parse as parse5 } from "parse5";
 import { parse as ultra } from "ultrahtml";
 
-import * as html from "../src/index";
-import * as mutable from "../src/mutable/index";
+import * as html from "../../src/index";
+import * as mutable from "../../src/mutable/index";
 import * as suite from "./suite";
 
 import type { Suite } from "./suite";

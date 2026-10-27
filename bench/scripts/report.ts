@@ -6,17 +6,17 @@ import * as edit from "./edit";
 import * as parse from "./parse";
 import * as query from "./query";
 
-import type { Result, Row } from "./index";
+import type { Result, Row } from "./run";
 import type { Suite } from "./suite";
 
-const ROOT = join(import.meta.dirname, "..");
+const ROOT = join(import.meta.dirname, "..", "..");
 const SUITES: Suite[] = [parse.parse, query.query, edit.roundtrip, edit.edit];
 const START = "<!-- bench:start -->";
 const END = "<!-- bench:end -->";
 const GAP = 4;
 
 async function load(name: string): Promise<Result> {
-	let file = join(import.meta.dirname, "results", name);
+	let file = join(import.meta.dirname, "..", "results", name);
 	return JSON.parse(await readFile(file, "utf8"));
 }
 
@@ -170,8 +170,8 @@ ${environment(bun, node)}
 ## Running
 
 \`\`\`sh
-$ bun run bench corpus   # download the pages once
-$ bun run bench all      # run on Bun and Node, then write this file and the readme summary
+$ bun run bench build    # download missing pages and bundle the Node runner
+$ bun run bench all      # build, run on Bun and Node, then write this file and the readme summary
 $ bun run bench compare  # check correctness against htmlparser2
 \`\`\`
 
@@ -195,5 +195,5 @@ ${pages.map((x) => `- ${x.name} (${size(x.html.length)})`).join("\n")}
 ${long(bun, node)}
 `;
 
-await writeFile(join(import.meta.dirname, "readme.md"), detail);
+await writeFile(join(import.meta.dirname, "..", "readme.md"), detail);
 console.log(short(bun, node));

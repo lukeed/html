@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const DIR = join(import.meta.dirname, "corpus");
+const DIR = join(import.meta.dirname, "..", "corpus");
 
 const PAGES = [
 	"https://en.wikipedia.org/wiki/HTML",
@@ -26,7 +26,7 @@ const PAGES = [
 export async function load(): Promise<{ name: string; html: string }[]> {
 	let files = await readdir(DIR).catch(() => []);
 	if (files.length === 0)
-		throw new Error("Missing corpus. Run `bun run corpus` first.");
+		throw new Error("Missing corpus. Run `bun run bench build` first.");
 	return Promise.all(
 		files.sort().map(async (file) => ({
 			name: file.replace(/\.html$/, ""),
@@ -35,21 +35,29 @@ export async function load(): Promise<{ name: string; html: string }[]> {
 	);
 }
 
-if (import.meta.main) {
+/**
+ * Download every page in `PAGES` that is not cached yet. Cached pages are kept,
+ * so results stay comparable across runs.
+ * @example
+ * await fill(); //=> ["en.wikipedia.org_wiki_HTML", ...] (the pages it downloaded)
+ */
+export async function fill(): Promise<string[]> {
 	await mkdir(DIR, { recursive: true });
+	let cached = new Set(await readdir(DIR));
+	let added: string[] = [];
+
 	for (let url of PAGES) {
-		let res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0" } });
-		let html = await res.text();
 		let name = url
 			.replace(/^https?:\/\//, "")
 			.replace(/[^\w.-]+/g, "_")
 			.replace(/_$/, "");
-		await writeFile(join(DIR, name + ".html"), html);
-		console.log(
-			res.status,
-			(html.length / 1024).toFixed(0).padStart(5),
-			"KB",
-			name,
-		);
+		if (cached.has(name + ".html")) continue;
+
+		let res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0" } });
+		if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
+		await writeFile(join(DIR, name + ".html"), await res.text());
+		added.push(name);
 	}
+
+	return added;
 }

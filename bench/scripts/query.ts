@@ -6,8 +6,8 @@ import { parse as nhp } from "node-html-parser";
 import { ELEMENT_NODE, TEXT_NODE, parse as ultra } from "ultrahtml";
 import { querySelector, querySelectorAll } from "ultrahtml/selector";
 
-import * as html from "../src/index";
-import * as mutable from "../src/mutable/index";
+import * as html from "../../src/index";
+import * as mutable from "../../src/mutable/index";
 import * as suite from "./suite";
 
 import type { AnyNode, Element as DomElement } from "domhandler";

@@ -4,4 +4,4 @@ node_modules
 
 /dist
 /bench/corpus
-/bench/.node.js
+/bench/.build

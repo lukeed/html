@@ -105,7 +105,7 @@ let result: Result = {
 	})),
 };
 
-let dir = join(import.meta.dirname, "results");
+let dir = join(import.meta.dirname, "..", "results");
 await mkdir(dir, { recursive: true });
 await writeFile(
 	join(dir, globalThis.Bun ? "bun.json" : "node.json"),

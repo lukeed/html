@@ -1,9 +1,9 @@
 import { parseDocument } from "htmlparser2";
 
-import * as html from "../src/index";
-import * as mutable from "../src/mutable/index";
-import * as tree from "../src/tree";
-import * as values from "../src/values";
+import * as html from "../../src/index";
+import * as mutable from "../../src/mutable/index";
+import * as tree from "../../src/tree";
+import * as values from "../../src/values";
 import * as corpus from "./corpus";
 
 import type { ChildNode } from "domhandler";

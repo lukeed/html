@@ -34,7 +34,7 @@
     "dom"
   ],
   "dependencies": {
-    "entities": "8.1.0"
+    "entities": "^8.1.0"
   },
   "devDependencies": {
     "@types/bun": "1.4.4",

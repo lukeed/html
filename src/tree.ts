@@ -1,3 +1,5 @@
+import { intern } from "./names";
+
 export const DOCUMENT = 0;
 export const ELEMENT = 1;
 export const TEXT = 2;
@@ -364,7 +366,7 @@ export function build(source: string): Tree {
 				source.charCodeAt(j) !== 47
 			)
 				j++;
-			let name = source.slice(lt + 2, j).toLowerCase();
+			let name = intern(source, lt + 2, j);
 			if (contexts.at(-1)) name = SVG.get(name) ?? name;
 
 			if (VOID.has(name)) {
@@ -402,10 +404,9 @@ export function build(source: string): Tree {
 		flush(lt);
 		i = text = k;
 
-		let name = source.slice(lt + 1, j);
-		let lower = name.toLowerCase();
-		if (contexts.at(-1)) name = SVG.get(lower) ?? lower;
-		else name = lower === "image" ? "img" : lower;
+		let name = intern(source, lt + 1, j);
+		if (contexts.at(-1)) name = SVG.get(name) ?? name;
+		else if (name === "image") name = "img";
 
 		if (name === "form" && stack.some((x) => names[x] === "form")) continue;
 

@@ -22,13 +22,11 @@ There are two "versions" of `@lukeed/html` available:
 
 #### `@lukeed/html`
 
-> **Size (gzip):** 5.2 kB, or 20.6 kB with `entities`<br>
-> **Availability:** [ES Module](https://unpkg.com/@lukeed/html/dist/index.js)
+> **Size (gzip):** 5.2 kB, or 20.6 kB with `entities`
 
 #### `@lukeed/html/mutable`
 
-> **Size (gzip):** 6.4 kB, or 21.8 kB with `entities`<br>
-> **Availability:** [ES Module](https://unpkg.com/@lukeed/html/dist/mutable/index.js)
+> **Size (gzip):** 6.4 kB, or 21.8 kB with `entities`
 
 <!-- modes:end -->
 

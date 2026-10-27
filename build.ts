@@ -6,18 +6,12 @@ import { $ } from "bun";
 type Mode = {
 	name: string;
 	entry: string;
-	/** Output path, relative to the package root. */
-	file: string;
 };
 
 const OUTDIR = "dist";
 const MODES: Mode[] = [
-	{ name: "@lukeed/html", entry: "src/index.ts", file: "dist/index.js" },
-	{
-		name: "@lukeed/html/mutable",
-		entry: "src/mutable/index.ts",
-		file: "dist/mutable/index.js",
-	},
+	{ name: "@lukeed/html", entry: "src/index.ts" },
+	{ name: "@lukeed/html/mutable", entry: "src/mutable/index.ts" },
 ];
 const START = "<!-- modes:start -->";
 const END = "<!-- modes:end -->";
@@ -76,8 +70,7 @@ for (let mode of MODES) {
 		[
 			`#### \`${mode.name}\``,
 			"",
-			`> **Size (gzip):** ${own}, or ${total} with \`entities\`<br>`,
-			`> **Availability:** [ES Module](https://unpkg.com/@lukeed/html/${mode.file})`,
+			`> **Size (gzip):** ${own}, or ${total} with \`entities\``,
 		].join("\n"),
 	);
 }

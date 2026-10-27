@@ -96,46 +96,46 @@ The tree follows htmlparser2, not the WHATWG tree construction algorithm. Browse
 
 ## Benchmarks
 
-12 real pages, 4.79 MB in total. Run `bun run corpus` once, then `bun run bench` or `bun run bench:node`. Each iteration starts with a collected heap.
+<!-- bench:start -->
 
-| Full tree                                   | Bun 1.4.4   | Node 26     |
-| ------------------------------------------- | ----------- | ----------- |
-| **@lukeed/html**                            | **11.5 ms** | **12.6 ms** |
-| @lukeed/html/mutable                        | 14.4 ms     | 14.3 ms     |
-| @lukeed/html, every attribute and text read | 30.2 ms     | 36.0 ms     |
-| ultrahtml                                   | 25.8 ms     | 39.6 ms     |
-| htmlparser2                                 | 39.7 ms     | 67.7 ms     |
-| node-html-parser                            | 41.1 ms     | 45.6 ms     |
-| parse5                                      | 82.1 ms     | 216.4 ms    |
-| Bun HTMLRewriter, building a tree           | 42.6 ms     | –           |
+> Bun 1.4.4 and Node v26.12.1 on Apple M1 Max, 2026-10-27. 12 real pages, 4.79 MB in total. Memory is retained heap on Node. See [`bench/readme.md`](bench/readme.md) for details.
 
-| Parse, then query title, meta, canonical, links, and images | Bun 1.4.4   | Node 26     |
-| ----------------------------------------------------------- | ----------- | ----------- |
-| **@lukeed/html**                                            | **18.1 ms** | **20.7 ms** |
-| @lukeed/html/mutable                                        | 24.5 ms     | 27.4 ms     |
-| lol-html (WASM), streaming                                  | 20.5 ms     | 24.0 ms     |
-| ultrahtml + selector                                        | 30.9 ms     | 60.5 ms     |
-| htmlparser2 + css-select                                    | 50.6 ms     | 107.0 ms    |
-| node-html-parser                                            | 55.3 ms     | 79.8 ms     |
-| Bun HTMLRewriter (native), streaming                        | 9.5 ms      | –           |
+```
+Benchmark :: parse (4.79 MB)    Bun       Node       Memory
+  @lukeed/html                  11.8ms    12.5ms     5.5MB
+  @lukeed/html, read all        30.1ms    45.9ms     17.5MB
+  @lukeed/html/mutable          14.0ms    26.1ms     22.1MB
+  ultrahtml                     25.4ms    54.4ms     25.8MB
+  htmlparser2                   42.6ms    106.2ms    19.9MB
+  node-html-parser              44.3ms    75.3ms     40.1MB
+  parse5                        86.6ms    295.4ms    108.9MB
+  Bun HTMLRewriter → tree       44.8ms    –          –
 
-| Parse, then stringify with no edits | Bun 1.4.4   | Node 26     |
-| ----------------------------------- | ----------- | ----------- |
-| **@lukeed/html/mutable**            | **13.5 ms** | **14.5 ms** |
-| ultrahtml                           | 46.8 ms     | 62.6 ms     |
-| node-html-parser                    | 49.5 ms     | 70.7 ms     |
-| htmlparser2 + dom-serializer        | 53.5 ms     | 116.2 ms    |
+Benchmark :: parse + query (4.79 MB)      Bun       Node
+  @lukeed/html                            18.2ms    22.3ms
+  @lukeed/html/mutable                    24.2ms    28.5ms
+  lol-html (wasm), streaming              19.7ms    24.1ms
+  ultrahtml + selector                    30.4ms    60.9ms
+  htmlparser2 + css-select                54.7ms    101.9ms
+  node-html-parser                        53.3ms    93.2ms
+  Bun HTMLRewriter (native), streaming    9.8ms     –
 
-| Parse, set link `rel`, add missing image `alt`, set title text, then stringify | Bun 1.4.4   | Node 26     |
-| ------------------------------------------------------------------------------ | ----------- | ----------- |
-| **@lukeed/html/mutable**                                                       | **33.2 ms** | **35.9 ms** |
-| ultrahtml + selector                                                           | 45.1 ms     | 76.6 ms     |
-| lol-html (WASM), streaming                                                     | 52.9 ms     | 61.6 ms     |
-| htmlparser2 + css-select + dom-serializer                                      | 59.7 ms     | 126.8 ms    |
-| node-html-parser                                                               | 66.3 ms     | 93.0 ms     |
-| Bun HTMLRewriter (native), streaming                                           | 9.9 ms      | –           |
+Benchmark :: parse + stringify (4.79 MB)    Bun       Node
+  @lukeed/html/mutable                      13.7ms    15.2ms
+  ultrahtml                                 41.5ms    80.4ms
+  htmlparser2 + dom-serializer              57.3ms    116.7ms
+  node-html-parser                          49.6ms    78.5ms
 
-`bun run compare` checks every tree in the corpus, node by node, against htmlparser2. It also applies the edit workload with the mutable variant, then parses the output again to check it.
+Benchmark :: parse + edit + stringify (4.79 MB)    Bun       Node
+  @lukeed/html/mutable                             33.4ms    44.1ms
+  lol-html (wasm), streaming                       47.9ms    63.8ms
+  ultrahtml + selector                             45.5ms    84.7ms
+  htmlparser2 + css-select + dom-serializer        63.8ms    153.7ms
+  node-html-parser                                 65.2ms    111.3ms
+  Bun HTMLRewriter (native), streaming             10.4ms    –
+```
+
+<!-- bench:end -->
 
 ## License
 

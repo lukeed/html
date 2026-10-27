@@ -199,6 +199,24 @@ const IMPLIES = new Map<string, Set<string>>([
 	].map((x): [string, Set<string>] => [x, P]),
 ]);
 
+const IS_VOID = 1;
+const IS_RAW = 2;
+const IS_FOREIGN = 4;
+const IS_INTEGRATION = 8;
+const HAS_IMPLIES = 16;
+
+/** The {@link VOID}, {@link RAW}, foreign, and implied-end sets of each name, as bits. */
+const FLAGS = new Map<string, number>();
+for (let [names, flag] of [
+	[VOID, IS_VOID],
+	[RAW, IS_RAW],
+	[FOREIGN, IS_FOREIGN],
+	[INTEGRATION, IS_INTEGRATION],
+	[IMPLIES.keys(), HAS_IMPLIES],
+] as const) {
+	for (let name of names) FLAGS.set(name, (FLAGS.get(name) ?? 0) | flag);
+}
+
 function isAlpha(c: number): boolean {
 	return (c >= 97 && c <= 122) || (c >= 65 && c <= 90);
 }
@@ -270,6 +288,7 @@ export function build(source: string): Tree {
 
 	let stack = [0];
 	let contexts: boolean[] = [];
+	let owners: number[] = [];
 	let text = 0;
 	let i = 0;
 
@@ -315,7 +334,10 @@ export function build(source: string): Tree {
 		end[id] = at;
 		to[id] = inner;
 		stop[id] = size;
-		if (FOREIGN.has(names[id]) || INTEGRATION.has(names[id])) contexts.pop();
+		if (owners.length > 0 && owners[owners.length - 1] === id) {
+			owners.pop();
+			contexts.pop();
+		}
 	};
 
 	while (i < n) {
@@ -369,7 +391,7 @@ export function build(source: string): Tree {
 			let name = intern(source, lt + 2, j);
 			if (contexts.at(-1)) name = SVG.get(name) ?? name;
 
-			if (VOID.has(name)) {
+			if ((FLAGS.get(name) ?? 0) & IS_VOID) {
 				if (name === "br") add(ELEMENT, "br", lt, e + 1, e + 1, e + 1, e);
 				continue;
 			}
@@ -410,28 +432,29 @@ export function build(source: string): Tree {
 
 		if (name === "form" && stack.some((x) => names[x] === "form")) continue;
 
-		let implies = IMPLIES.get(name);
-		if (implies) {
+		let flags = FLAGS.get(name) ?? 0;
+		if (flags & HAS_IMPLIES) {
+			let implies = IMPLIES.get(name)!;
 			while (stack.length > 1 && implies.has(names[stack[stack.length - 1]])) {
 				pop(lt, lt);
 			}
 		}
 
 		let id = add(ELEMENT, name, lt, k, k, k, j);
-		if (VOID.has(name)) continue;
+		if (flags & IS_VOID) continue;
 
 		let outer = contexts.at(-1) ?? false;
-		let context = FOREIGN.has(name)
-			? true
-			: INTEGRATION.has(name)
-				? false
-				: undefined;
+		let context =
+			flags & IS_FOREIGN ? true : flags & IS_INTEGRATION ? false : undefined;
 		let foreign = context ?? outer;
 		if (foreign && source.charCodeAt(k - 2) === 47) continue;
 
 		stack.push(id);
-		if (context !== undefined) contexts.push(context);
-		if (outer || !RAW.has(name)) continue;
+		if (context !== undefined) {
+			contexts.push(context);
+			owners.push(id);
+		}
+		if (outer || !(flags & IS_RAW)) continue;
 
 		let close = name === "plaintext" ? n : closing(source, name, k);
 		flush(close);

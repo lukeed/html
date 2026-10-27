@@ -36,7 +36,7 @@ export type Tree = {
 	tags: Map<string, number[]> | undefined;
 };
 
-const RAW = new Set([
+export const RAW = new Set([
 	"script",
 	"style",
 	"textarea",
@@ -48,7 +48,7 @@ const RAW = new Set([
 	"plaintext",
 ]);
 
-const VOID = new Set([
+export const VOID = new Set([
 	"area",
 	"base",
 	"basefont",

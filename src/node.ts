@@ -1,17 +1,15 @@
+import * as position from "./position";
 import * as select from "./select";
 import * as tree from "./tree";
 import * as values from "./values";
 
+import type { Position } from "./position";
 import type { Tree } from "./tree";
 
 export type Node = Element | Text | Comment | Directive;
 export type Parent = Element | Document;
 
-/** A 1-based source location. */
-export type Position = {
-	line: number;
-	column: number;
-};
+export type { Position } from "./position";
 
 type Context = {
 	tree: Tree;
@@ -135,32 +133,8 @@ export class Document {
 	 */
 	position(offset: number): Position {
 		let ctx = this.#ctx;
-		let source = ctx.tree.source;
-
-		if (!ctx.lines) {
-			ctx.lines = [];
-			for (
-				let i = source.indexOf("\n");
-				i !== -1;
-				i = source.indexOf("\n", i + 1)
-			) {
-				ctx.lines.push(i);
-			}
-		}
-
-		let lines = ctx.lines;
-		let lo = 0;
-		let hi = lines.length;
-		while (lo < hi) {
-			let mid = (lo + hi) >>> 1;
-			if (lines[mid] < offset) lo = mid + 1;
-			else hi = mid;
-		}
-
-		return {
-			line: lo + 1,
-			column: offset - (lo > 0 ? lines[lo - 1] + 1 : 0) + 1,
-		};
+		ctx.lines ??= position.breaks(ctx.tree.source);
+		return position.locate(ctx.lines, offset);
 	}
 }
 

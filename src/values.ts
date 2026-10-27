@@ -16,7 +16,7 @@ function isName(c: number): boolean {
 	return !(isBreak(c) || c === 34 || c === 39);
 }
 
-const LITERAL = new Set([
+export const LITERAL = new Set([
 	"script",
 	"style",
 	"xmp",

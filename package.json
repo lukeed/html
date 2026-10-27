@@ -8,7 +8,7 @@
   "author": "Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)",
   "scripts": {
     "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build src/index.ts --outdir dist --target node --packages external --minify",
+    "build:js": "bun build src/index.ts src/mutable/index.ts --root src --outdir dist --target node --packages external --splitting --minify",
     "build:types": "tsc -p tsconfig.build.json",
     "bench": "bun bench/index.ts",
     "corpus": "bun bench/corpus.ts",
@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./mutable": {
+      "types": "./dist/mutable/index.d.ts",
+      "default": "./dist/mutable/index.js"
     },
     "./package.json": "./package.json"
   },

@@ -61,15 +61,15 @@ export const query: Suite = {
 						title: doc.find("head > title")?.text,
 						description: doc
 							.all("meta[name=description]")
-							.map((el) => el.attr("content")),
+							.map((el) => el.getAttr("content")),
 						viewport: doc
 							.all("meta[name=viewport]")
-							.map((el) => el.attr("content")),
+							.map((el) => el.getAttr("content")),
 						canonical: doc
 							.all("link[rel=canonical]")
-							.map((el) => el.attr("href")),
-						links: doc.all("a").map((el) => el.attr("href")),
-						images: doc.all("img").map((el) => el.attr("alt")),
+							.map((el) => el.getAttr("href")),
+						links: doc.all("a").map((el) => el.getAttr("href")),
+						images: doc.all("img").map((el) => el.getAttr("alt")),
 					};
 				});
 			},
@@ -83,15 +83,15 @@ export const query: Suite = {
 						title: doc.find("head > title")?.text,
 						description: doc
 							.all("meta[name=description]")
-							.map((el) => el.attr("content")),
+							.map((el) => el.getAttr("content")),
 						viewport: doc
 							.all("meta[name=viewport]")
-							.map((el) => el.attr("content")),
+							.map((el) => el.getAttr("content")),
 						canonical: doc
 							.all("link[rel=canonical]")
-							.map((el) => el.attr("href")),
-						links: doc.all("a").map((el) => el.attr("href")),
-						images: doc.all("img").map((el) => el.attr("alt")),
+							.map((el) => el.getAttr("href")),
+						links: doc.all("a").map((el) => el.getAttr("href")),
+						images: doc.all("img").map((el) => el.getAttr("alt")),
 					};
 				});
 			},

@@ -299,9 +299,9 @@ export class Element extends Child {
 	/**
 	 * Read one attribute. Names are case-insensitive.
 	 * @example
-	 * parse('<img alt="x">').find("img")?.attr("ALT"); //=> "x"
+	 * parse('<img alt="x">').find("img")?.getAttr("ALT"); //=> "x"
 	 */
-	attr(name: string): string | undefined {
+	getAttr(name: string): string | undefined {
 		let attrs = state.attributes(read(this));
 		let key = name.toLowerCase();
 		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
@@ -310,9 +310,9 @@ export class Element extends Child {
 	/**
 	 * Whether an attribute is present. Names are case-insensitive.
 	 * @example
-	 * parse("<input disabled>").find("input")?.has("disabled"); //=> true
+	 * parse("<input disabled>").find("input")?.hasAttr("disabled"); //=> true
 	 */
-	has(name: string): boolean {
+	hasAttr(name: string): boolean {
 		return Object.hasOwn(state.attributes(read(this)), name.toLowerCase());
 	}
 
@@ -321,10 +321,10 @@ export class Element extends Child {
 	 * @throws {SyntaxError} if `name` is not a valid attribute name.
 	 * @example
 	 * let doc = parse("<img>");
-	 * doc.find("img")?.set("alt", "A & B");
+	 * doc.find("img")?.setAttr("alt", "A & B");
 	 * stringify(doc); //=> '<img alt="A &amp; B">'
 	 */
-	set(name: string, value: string): void {
+	setAttr(name: string, value: string): void {
 		if (!NAME.test(name))
 			throw new SyntaxError(`Invalid attribute name: "${name}"`);
 		let s = read(this);
@@ -338,10 +338,10 @@ export class Element extends Child {
 	 * Remove an attribute, if present.
 	 * @example
 	 * let doc = parse("<input disabled>");
-	 * doc.find("input")?.unset("disabled");
+	 * doc.find("input")?.removeAttr("disabled");
 	 * stringify(doc); //=> "<input>"
 	 */
-	unset(name: string): void {
+	removeAttr(name: string): void {
 		let s = read(this);
 		let key = name.toLowerCase();
 		if (!Object.hasOwn(state.attributes(s), key)) return;

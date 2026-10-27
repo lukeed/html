@@ -24,7 +24,7 @@ let doc = parse(
 );
 
 doc.find("head > title")?.text; //=> "Hi & bye"
-doc.find("link[rel=canonical]")?.attr("href"); //=> "/"
+doc.find("link[rel=canonical]")?.getAttr("href"); //=> "/"
 
 for (let img of doc.all("img:not([alt])")) {
   let { line, column } = doc.position(img.start);
@@ -52,7 +52,7 @@ Return the source of a node or document, exactly as written.
 
 - `name`, `start`, `end`, `parent`, `children`, `document`
 - `attributes` is a frozen object with lowercase names and decoded values.
-- `attr(name)` and `has(name)` ignore the case of `name`.
+- `getAttr(name)` and `hasAttr(name)` ignore the case of `name`.
 - `text` is the decoded text of all descendants. `html` is the inner source.
 - `find(selector)`, `all(selector)`, `matches(selector)`, `closest(selector)`
 
@@ -76,12 +76,12 @@ An unsupported or malformed selector throws a `SyntaxError`.
 import { parse, stringify } from "@lukeed/html/mutable";
 
 let doc = parse("<ul><li>a</li></ul>");
-doc.find("li")?.set("class", "first");
+doc.find("li")?.setAttr("class", "first");
 doc.find("ul")?.append(...parse("<li>b</li>").children);
 stringify(doc); //=> '<ul><li class="first">a</li><li>b</li></ul>'
 ```
 
-- `Element`: `set(name, value)`, `unset(name)`, the `text` and `html` setters, `append()`, `prepend()`
+- `Element`: `setAttr(name, value)`, `removeAttr(name)`, the `text` and `html` setters, `append()`, `prepend()`
 - `Element`, `Text`, `Comment`, `Directive`: `before()`, `after()`, `replace()`, `remove()`
 - `Text`, `Comment`, `Directive`: the `value` setter
 - `Document`: `append()`, `prepend()`

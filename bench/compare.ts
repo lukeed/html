@@ -90,8 +90,8 @@ for (let page of await corpus.load()) {
 for (let page of await corpus.load()) {
 	let doc = mutable.parse(page.html);
 	let count = doc.all("*").length;
-	for (let a of doc.all("a[href]")) a.set("rel", "noopener");
-	for (let img of doc.all("img:not([alt])")) img.set("alt", "");
+	for (let a of doc.all("a[href]")) a.setAttr("rel", "noopener");
+	for (let img of doc.all("img:not([alt])")) img.setAttr("alt", "");
 	let title = doc.find("title");
 	if (title) title.text = "Edited";
 

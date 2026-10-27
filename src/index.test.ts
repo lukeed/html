@@ -83,11 +83,11 @@ describe("Element", () => {
 			href: "https://example.com/?a=1&b=2",
 		});
 		expect(Object.isFrozen(link?.attributes)).toBe(true);
-		expect(doc.find("a")?.attr("class")).toBe("x");
-		expect(doc.find("a")?.attr("Class")).toBe("x");
-		expect(doc.find("a")?.attr("id")).toBeUndefined();
-		expect(doc.find("a")?.has("CLASS")).toBe(true);
-		expect(doc.find("a")?.has("constructor")).toBe(false);
+		expect(doc.find("a")?.getAttr("class")).toBe("x");
+		expect(doc.find("a")?.getAttr("Class")).toBe("x");
+		expect(doc.find("a")?.getAttr("id")).toBeUndefined();
+		expect(doc.find("a")?.hasAttr("CLASS")).toBe(true);
+		expect(doc.find("a")?.hasAttr("constructor")).toBe(false);
 	});
 
 	test("text decodes descendants", () => {

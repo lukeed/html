@@ -84,11 +84,11 @@ describe("parse()", () => {
 });
 
 describe("attributes", () => {
-	test("set() adds or replaces, and output is escaped", () => {
+	test("setAttr() adds or replaces, and output is escaped", () => {
 		let doc = mutable.parse('<a href="/">x</a>');
 		let a = doc.find("a");
-		a?.set("HREF", "/next?a=1&b=2");
-		a?.set("title", `say "hi" > bye`);
+		a?.setAttr("HREF", "/next?a=1&b=2");
+		a?.setAttr("title", `say "hi" > bye`);
 		expect(a?.attributes).toEqual({
 			href: "/next?a=1&b=2",
 			title: `say "hi" > bye`,
@@ -100,26 +100,26 @@ describe("attributes", () => {
 		expect(again?.attributes).toEqual(a?.attributes ?? {});
 	});
 
-	test("set() rejects invalid names", () => {
+	test("setAttr() rejects invalid names", () => {
 		let a = mutable.parse("<a>").find("a");
 		for (let bad of ["", "a b", 'a"', "a>", "a=b", "a/"]) {
-			expect(() => a?.set(bad, "x")).toThrow(SyntaxError);
+			expect(() => a?.setAttr(bad, "x")).toThrow(SyntaxError);
 		}
 	});
 
-	test("unset() removes, and keeps boolean attributes bare", () => {
+	test("removeAttr() removes, and keeps boolean attributes bare", () => {
 		let doc = mutable.parse('<input type="checkbox" disabled checked>');
 		let input = doc.find("input");
-		input?.unset("CHECKED");
-		input?.unset("missing");
-		expect(input?.has("checked")).toBe(false);
+		input?.removeAttr("CHECKED");
+		input?.removeAttr("missing");
+		expect(input?.hasAttr("checked")).toBe(false);
 		expect(mutable.stringify(doc)).toBe('<input type="checkbox" disabled>');
 	});
 
 	test("attributes are frozen and replaced on edit", () => {
 		let a = mutable.parse("<a id=x>").find("a");
 		let before = a?.attributes;
-		a?.set("id", "y");
+		a?.setAttr("id", "y");
 		expect(Object.isFrozen(before)).toBe(true);
 		expect(before).toEqual({ id: "x" });
 		expect(a?.attributes).toEqual({ id: "y" });
@@ -127,7 +127,7 @@ describe("attributes", () => {
 
 	test("selectors see edits", () => {
 		let doc = mutable.parse("<a></a><a></a>");
-		doc.all("a")[1].set("data-x", "1");
+		doc.all("a")[1].setAttr("data-x", "1");
 		expect(doc.all('[data-x="1"]')).toEqual([doc.all("a")[1]]);
 		expect(doc.find("a")?.matches("[data-x]")).toBe(false);
 	});
@@ -135,7 +135,7 @@ describe("attributes", () => {
 	test("only the edited tag is rebuilt", () => {
 		let source = "<div  class='a'><p  id=x>t</p></div>";
 		let doc = mutable.parse(source);
-		doc.find("p")?.set("id", "y");
+		doc.find("p")?.setAttr("id", "y");
 		expect(mutable.stringify(doc)).toBe(
 			`<div  class='a'><p id="y">t</p></div>`,
 		);
@@ -277,7 +277,7 @@ describe("children", () => {
 		let div = doc.find("div");
 		if (div) div.html = "<span>a</span><br>";
 		let span = doc.find("span");
-		span?.set("class", "x");
+		span?.setAttr("class", "x");
 		expect(mutable.stringify(doc)).toBe(
 			'<div><span class="x">a</span><br></div>',
 		);
@@ -299,11 +299,11 @@ describe("reads", () => {
 		"<!doctype html><!-- c --><nav><a CLASS=x>a</a><p></p></nav>",
 	);
 
-	test("attr, find, matches, closest", () => {
+	test("getAttr, find, matches, closest", () => {
 		let nav = doc.find("nav");
 		let a = nav?.find("a");
-		expect(a?.attr("Class")).toBe("x");
-		expect(a?.attr("id")).toBeUndefined();
+		expect(a?.getAttr("Class")).toBe("x");
+		expect(a?.getAttr("id")).toBeUndefined();
 		expect(nav?.find("li")).toBeUndefined();
 		expect(a?.matches("nav > .x")).toBe(true);
 		expect(a?.closest("nav")).toBe(nav);

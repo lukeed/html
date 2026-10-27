@@ -52,8 +52,8 @@ export const edit: Suite = {
 			run(xs) {
 				return xs.map((x) => {
 					let doc = mutable.parse(x.html);
-					for (let a of doc.all("a[href]")) a.set("rel", "noopener");
-					for (let img of doc.all("img:not([alt])")) img.set("alt", "");
+					for (let a of doc.all("a[href]")) a.setAttr("rel", "noopener");
+					for (let img of doc.all("img:not([alt])")) img.setAttr("alt", "");
 					let title = doc.find("title");
 					if (title) title.text = "Edited";
 					return mutable.stringify(doc);

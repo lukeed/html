@@ -20,7 +20,7 @@ export type {
  * the main module, plus edits to attributes, text, and children.
  * @example
  * let doc = parse("<ul><li>a</li></ul>");
- * doc.find("li")?.set("class", "first");
+ * doc.find("li")?.setAttr("class", "first");
  * doc.find("ul")?.append(...parse("<li>b</li>").children);
  * stringify(doc); //=> '<ul><li class="first">a</li><li>b</li></ul>'
  */

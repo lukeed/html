@@ -110,7 +110,7 @@ export class Document {
 	/**
 	 * The first element that matches a CSS selector list.
 	 * @example
-	 * parse('<link rel="canonical" href="/">').find("link[rel=canonical]")?.attr("href"); //=> "/"
+	 * parse('<link rel="canonical" href="/">').find("link[rel=canonical]")?.getAttr("href"); //=> "/"
 	 */
 	find(selector: string): Element | undefined {
 		return findOne(this.#ctx, 0, selector);
@@ -206,9 +206,9 @@ export class Element {
 	/**
 	 * Read one attribute. Names are case-insensitive.
 	 * @example
-	 * parse('<img alt="">').find("img")?.attr("ALT"); //=> ""
+	 * parse('<img alt="">').find("img")?.getAttr("ALT"); //=> ""
 	 */
-	attr(name: string): string | undefined {
+	getAttr(name: string): string | undefined {
 		let attrs = values.attributes(this.#ctx.tree, this.#id);
 		let key = name.toLowerCase();
 		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
@@ -217,9 +217,9 @@ export class Element {
 	/**
 	 * Whether an attribute is present. Names are case-insensitive.
 	 * @example
-	 * parse("<input disabled>").find("input")?.has("disabled"); //=> true
+	 * parse("<input disabled>").find("input")?.hasAttr("disabled"); //=> true
 	 */
-	has(name: string): boolean {
+	hasAttr(name: string): boolean {
 		return Object.hasOwn(
 			values.attributes(this.#ctx.tree, this.#id),
 			name.toLowerCase(),

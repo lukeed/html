@@ -20,7 +20,7 @@ export type {
  * @example
  * let doc = parse('<title>Hi</title><link rel="canonical" href="/">');
  * doc.find("title")?.text; //=> "Hi"
- * doc.find("link[rel=canonical]")?.attr("href"); //=> "/"
+ * doc.find("link[rel=canonical]")?.getAttr("href"); //=> "/"
  */
 export function parse(source: string): Document {
 	return new node.Document(tree.build(source));

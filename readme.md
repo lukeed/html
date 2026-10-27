@@ -22,11 +22,11 @@ There are two "versions" of `@lukeed/html` available:
 
 #### `@lukeed/html`
 
-> **Size (gzip):** 5.2 kB, or 20.6 kB with `entities`
+> **Size (gzip):** 5.9 kB, or 21.3 kB with `entities`
 
 #### `@lukeed/html/mutable`
 
-> **Size (gzip):** 6.4 kB, or 21.8 kB with `entities`
+> **Size (gzip):** 7.1 kB, or 22.5 kB with `entities`
 
 <!-- modes:end -->
 
@@ -123,37 +123,37 @@ The tree follows htmlparser2, not the WHATWG tree construction algorithm. Browse
 
 ```txt
 Benchmark :: parse (4.79 MB)    Bun       Node       Memory
-  @lukeed/html                  11.8ms    12.5ms     5.5MB
-  @lukeed/html, read all        30.1ms    45.9ms     17.5MB
-  @lukeed/html/mutable          14.0ms    26.1ms     22.1MB
-  ultrahtml                     25.4ms    54.4ms     25.8MB
-  htmlparser2                   42.6ms    106.2ms    19.9MB
-  node-html-parser              44.3ms    75.3ms     40.1MB
-  parse5                        86.6ms    295.4ms    108.9MB
-  Bun HTMLRewriter → tree       44.8ms    –          –
+  @lukeed/html                  7.9ms     11.7ms     4.9MB
+  @lukeed/html, read all        26.1ms    36.6ms     21.2MB
+  @lukeed/html/mutable          10.3ms    13.1ms     20.9MB
+  ultrahtml                     25.0ms    41.6ms     25.8MB
+  htmlparser2                   40.4ms    68.2ms     19.9MB
+  node-html-parser              44.0ms    50.7ms     40.1MB
+  parse5                        86.4ms    213.6ms    108.9MB
+  Bun HTMLRewriter → tree       46.2ms    –          –
 
 Benchmark :: parse + query (4.79 MB)      Bun       Node
-  @lukeed/html                            18.2ms    22.3ms
-  @lukeed/html/mutable                    24.2ms    28.5ms
-  lol-html (wasm), streaming              19.7ms    24.1ms
-  ultrahtml + selector                    30.4ms    60.9ms
-  htmlparser2 + css-select                54.7ms    101.9ms
-  node-html-parser                        53.3ms    93.2ms
-  Bun HTMLRewriter (native), streaming    9.8ms     –
+  @lukeed/html                            11.8ms    16.3ms
+  @lukeed/html/mutable                    19.6ms    24.1ms
+  lol-html (wasm), streaming              19.3ms    23.4ms
+  ultrahtml + selector                    30.0ms    62.2ms
+  htmlparser2 + css-select                52.5ms    104.2ms
+  node-html-parser                        51.1ms    78.1ms
+  Bun HTMLRewriter (native), streaming    9.3ms     –
 
 Benchmark :: parse + stringify (4.79 MB)    Bun       Node
-  @lukeed/html/mutable                      13.7ms    15.2ms
-  ultrahtml                                 41.5ms    80.4ms
-  htmlparser2 + dom-serializer              57.3ms    116.7ms
-  node-html-parser                          49.6ms    78.5ms
+  @lukeed/html/mutable                      10.0ms    13.5ms
+  ultrahtml                                 41.0ms    69.1ms
+  htmlparser2 + dom-serializer              55.3ms    121.3ms
+  node-html-parser                          47.6ms    68.1ms
 
 Benchmark :: parse + edit + stringify (4.79 MB)    Bun       Node
-  @lukeed/html/mutable                             33.4ms    44.1ms
-  lol-html (wasm), streaming                       47.9ms    63.8ms
-  ultrahtml + selector                             45.5ms    84.7ms
-  htmlparser2 + css-select + dom-serializer        63.8ms    153.7ms
-  node-html-parser                                 65.2ms    111.3ms
-  Bun HTMLRewriter (native), streaming             10.4ms    –
+  @lukeed/html/mutable                             27.8ms    35.5ms
+  lol-html (wasm), streaming                       46.8ms    63.1ms
+  ultrahtml + selector                             43.6ms    79.4ms
+  htmlparser2 + css-select + dom-serializer        61.7ms    131.3ms
+  node-html-parser                                 60.1ms    95.5ms
+  Bun HTMLRewriter (native), streaming             9.5ms     –
 ```
 
 <!-- bench:end -->

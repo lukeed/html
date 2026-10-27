@@ -33,7 +33,7 @@ Every workload runs on all 12 pages per iteration, 4.79 MB in total:
 
 - Timing uses [mitata](https://github.com/evanwashere/mitata). Each iteration runs the workload on every page, and starts with a collected heap, so one candidate's garbage does not slow the next.
 - `avg`, `p75`, and `p99` are per iteration, so they cover all pages.
-- **Memory** is the heap that is still reachable after the workload, with its results kept, after full collections on Node. Each sample runs in a fresh process, because a second sample in the same process can read as zero. It is the median of 5 samples, which agree within 0.9%. It is only shown for `parse`, where the result is the tree. Other workloads keep only small results or one output string.
+- **Memory** is the heap that is still reachable after the workload, with its results kept, after full collections on Node. Each sample runs in a fresh process, because a second sample in the same process can read as zero. It is the median of 5 samples, which agree within 3.3%. It is only shown for `parse`, where the result is the tree. Other workloads keep only small results or one output string.
 - Memory is not shown for Bun. JavaScriptCore scans the stack conservatively, so garbage from earlier samples stays alive, and its heap counters leave out memory allocated outside the object heap. Repeated samples were not stable.
 - Bun's `HTMLRewriter` only runs on Bun, so it has no Node results.
 - `bun run bench compare` checks that @lukeed/html builds the same tree as htmlparser2 for every page, and that the edit workload produces valid output.
@@ -46,14 +46,14 @@ Parse each page into a full tree and keep it. @lukeed/html reads attributes and 
 
 ```txt
 Benchmark :: parse (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99        Memory
-  @lukeed/html                  11.8ms     12.2ms    13.1ms    12.5ms      12.5ms     14.4ms     5.5MB
-  @lukeed/html, read all        30.1ms     31.0ms    31.4ms    45.9ms      46.0ms     51.6ms     17.5MB
-  @lukeed/html/mutable          14.0ms     14.3ms    14.9ms    26.1ms      27.9ms     41.6ms     22.1MB
-  ultrahtml                     25.4ms     26.4ms    27.1ms    54.4ms      58.0ms     60.3ms     25.8MB
-  htmlparser2                   42.6ms     41.6ms    48.8ms    106.2ms     130.2ms    151.4ms    19.9MB
-  node-html-parser              44.3ms     44.8ms    46.0ms    75.3ms      78.2ms     79.1ms     40.1MB
-  parse5                        86.6ms     87.3ms    90.2ms    295.4ms     306.4ms    315.0ms    108.9MB
-  Bun HTMLRewriter → tree       44.8ms     45.4ms    45.8ms    –           –          –          –
+  @lukeed/html                  7.9ms      8.0ms     9.1ms     11.7ms      11.8ms     14.0ms     4.9MB
+  @lukeed/html, read all        26.1ms     26.3ms    28.1ms    36.6ms      37.2ms     37.5ms     21.2MB
+  @lukeed/html/mutable          10.3ms     10.3ms    14.2ms    13.1ms      13.3ms     13.4ms     20.9MB
+  ultrahtml                     25.0ms     25.3ms    26.8ms    41.6ms      41.7ms     42.0ms     25.8MB
+  htmlparser2                   40.4ms     40.6ms    41.4ms    68.2ms      82.2ms     84.8ms     19.9MB
+  node-html-parser              44.0ms     45.1ms    45.4ms    50.7ms      51.1ms     51.3ms     40.1MB
+  parse5                        86.4ms     86.1ms    90.1ms    213.6ms     220.1ms    222.6ms    108.9MB
+  Bun HTMLRewriter → tree       46.2ms     46.7ms    49.0ms    –           –          –          –
 ```
 
 ### parse + query
@@ -62,13 +62,13 @@ Parse each page, then read what an SEO linter needs: the `head > title` text, th
 
 ```txt
 Benchmark :: parse + query (4.79 MB)      Bun avg    p75       p99       Node avg    p75        p99
-  @lukeed/html                            18.2ms     18.4ms    19.1ms    22.3ms      22.9ms     26.7ms
-  @lukeed/html/mutable                    24.2ms     24.4ms    24.6ms    28.5ms      29.0ms     31.1ms
-  lol-html (wasm), streaming              19.7ms     19.8ms    20.2ms    24.1ms      24.5ms     25.9ms
-  ultrahtml + selector                    30.4ms     30.6ms    30.9ms    60.9ms      63.3ms     64.2ms
-  htmlparser2 + css-select                54.7ms     55.9ms    56.7ms    101.9ms     106.1ms    108.4ms
-  node-html-parser                        53.3ms     53.4ms    55.4ms    93.2ms      82.7ms     167.2ms
-  Bun HTMLRewriter (native), streaming    9.8ms      9.9ms     10.2ms    –           –          –
+  @lukeed/html                            11.8ms     12.0ms    12.6ms    16.3ms      16.5ms     16.9ms
+  @lukeed/html/mutable                    19.6ms     19.8ms    20.5ms    24.1ms      24.4ms     24.8ms
+  lol-html (wasm), streaming              19.3ms     19.5ms    19.8ms    23.4ms      23.8ms     24.6ms
+  ultrahtml + selector                    30.0ms     30.2ms    30.4ms    62.2ms      63.3ms     67.2ms
+  htmlparser2 + css-select                52.5ms     53.1ms    54.8ms    104.2ms     106.0ms    109.3ms
+  node-html-parser                        51.1ms     51.6ms    51.8ms    78.1ms      79.0ms     80.0ms
+  Bun HTMLRewriter (native), streaming    9.3ms      9.5ms     9.7ms     –           –          –
 ```
 
 ### parse + stringify
@@ -77,10 +77,10 @@ Parse each page and serialize it again with no edits. Only libraries that can se
 
 ```txt
 Benchmark :: parse + stringify (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99
-  @lukeed/html/mutable                      13.7ms     13.7ms    13.9ms    15.2ms      15.3ms     16.3ms
-  ultrahtml                                 41.5ms     41.7ms    42.2ms    80.4ms      89.0ms     92.0ms
-  htmlparser2 + dom-serializer              57.3ms     57.9ms    58.4ms    116.7ms     118.0ms    125.4ms
-  node-html-parser                          49.6ms     49.9ms    50.4ms    78.5ms      81.0ms     82.2ms
+  @lukeed/html/mutable                      10.0ms     9.9ms     11.5ms    13.5ms      13.7ms     13.7ms
+  ultrahtml                                 41.0ms     41.4ms    42.1ms    69.1ms      73.7ms     75.5ms
+  htmlparser2 + dom-serializer              55.3ms     55.7ms    56.4ms    121.3ms     124.3ms    125.9ms
+  node-html-parser                          47.6ms     47.8ms    48.0ms    68.1ms      72.0ms     72.3ms
 ```
 
 ### parse + edit + stringify
@@ -89,10 +89,10 @@ Parse each page, set `rel="noopener"` on every `a[href]`, set `alt=""` on every 
 
 ```txt
 Benchmark :: parse + edit + stringify (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99
-  @lukeed/html/mutable                             33.4ms     33.6ms    34.4ms    44.1ms      45.1ms     46.3ms
-  lol-html (wasm), streaming                       47.9ms     48.0ms    48.4ms    63.8ms      64.4ms     64.8ms
-  ultrahtml + selector                             45.5ms     45.9ms    46.3ms    84.7ms      90.4ms     94.9ms
-  htmlparser2 + css-select + dom-serializer        63.8ms     64.7ms    65.4ms    153.7ms     159.2ms    168.8ms
-  node-html-parser                                 65.2ms     65.1ms    72.1ms    111.3ms     137.2ms    138.3ms
-  Bun HTMLRewriter (native), streaming             10.4ms     11.3ms    13.9ms    –           –          –
+  @lukeed/html/mutable                             27.8ms     27.9ms    28.5ms    35.5ms      35.8ms     36.6ms
+  lol-html (wasm), streaming                       46.8ms     47.3ms    47.6ms    63.1ms      63.9ms     64.3ms
+  ultrahtml + selector                             43.6ms     43.8ms    44.2ms    79.4ms      84.4ms     84.4ms
+  htmlparser2 + css-select + dom-serializer        61.7ms     62.1ms    62.4ms    131.3ms     132.5ms    134.7ms
+  node-html-parser                                 60.1ms     60.4ms    61.3ms    95.5ms      96.9ms     100.4ms
+  Bun HTMLRewriter (native), streaming             9.5ms      9.7ms     10.7ms    –           –          –
 ```

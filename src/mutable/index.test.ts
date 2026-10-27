@@ -293,3 +293,42 @@ describe("Document", () => {
 		expect(doc.source).toBe("<p>\n<img>");
 	});
 });
+
+describe("reads", () => {
+	let doc = mutable.parse(
+		"<!doctype html><!-- c --><nav><a CLASS=x>a</a><p></p></nav>",
+	);
+
+	test("attr, find, matches, closest", () => {
+		let nav = doc.find("nav");
+		let a = nav?.find("a");
+		expect(a?.attr("Class")).toBe("x");
+		expect(a?.attr("id")).toBeUndefined();
+		expect(nav?.find("li")).toBeUndefined();
+		expect(a?.matches("nav > .x")).toBe(true);
+		expect(a?.closest("nav")).toBe(nav);
+		expect(a?.closest("p")).toBeUndefined();
+	});
+
+	test(":empty sees edits", () => {
+		let p = doc.find("p:empty");
+		expect(p?.name).toBe("p");
+		p?.append("x");
+		expect(doc.find("p:empty")).toBeUndefined();
+	});
+
+	test("leaf values", () => {
+		let [directive, comment] = doc.children;
+		expect(directive.type === "directive" && directive.value).toBe(
+			"doctype html",
+		);
+		expect(comment.type === "comment" && comment.value).toBe(" c ");
+		let [text] = doc.find("a")?.children ?? [];
+		expect(text?.type === "text" && text.value).toBe("a");
+	});
+
+	test("document range", () => {
+		expect(doc.start).toBe(0);
+		expect(doc.end).toBe(doc.source.length);
+	});
+});

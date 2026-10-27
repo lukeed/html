@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { intern } from "./names";
+import * as names from "./names";
+
+const KNOWN = names.table(["div", "foreignobject", "h1", "di"]);
+
+function intern(source: string, from: number, to: number): string {
+	return names.intern(KNOWN, source, from, to);
+}
 
 describe("intern()", () => {
 	test("should lowercase known names", () => {
@@ -12,7 +18,7 @@ describe("intern()", () => {
 	test("should lowercase unknown names", () => {
 		expect(intern("<My-Element>", 1, 11)).toBe("my-element");
 		expect(intern("<divx>", 1, 5)).toBe("divx");
-		expect(intern("<di>", 1, 3)).toBe("di");
+		expect(intern("<dir>", 1, 4)).toBe("dir");
 	});
 
 	test("should match non-ASCII names like toLowerCase()", () => {

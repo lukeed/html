@@ -1,4 +1,4 @@
-import { intern } from "./names";
+import { intern, table } from "./names";
 
 export const DOCUMENT = 0;
 export const ELEMENT = 1;
@@ -199,6 +199,18 @@ const IMPLIES = new Map<string, Set<string>>([
 	].map((x): [string, Set<string>] => [x, P]),
 ]);
 
+/** Every name the parser checks, and other common tags. */
+const KNOWN = table([
+	...RAW,
+	...VOID,
+	...FOREIGN,
+	...[...INTEGRATION].map((x) => x.toLowerCase()),
+	...IMPLIES.keys(),
+	..."html head span i b em strong small code label picture noscript template time sup path g use rect circle image video".split(
+		" ",
+	),
+]);
+
 const IS_VOID = 1;
 const IS_RAW = 2;
 const IS_FOREIGN = 4;
@@ -388,7 +400,7 @@ export function build(source: string): Tree {
 				source.charCodeAt(j) !== 47
 			)
 				j++;
-			let name = intern(source, lt + 2, j);
+			let name = intern(KNOWN, source, lt + 2, j);
 			if (contexts.at(-1)) name = SVG.get(name) ?? name;
 
 			if ((FLAGS.get(name) ?? 0) & IS_VOID) {
@@ -426,7 +438,7 @@ export function build(source: string): Tree {
 		flush(lt);
 		i = text = k;
 
-		let name = intern(source, lt + 1, j);
+		let name = intern(KNOWN, source, lt + 1, j);
 		if (contexts.at(-1)) name = SVG.get(name) ?? name;
 		else if (name === "image") name = "img";
 

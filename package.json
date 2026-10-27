@@ -8,11 +8,7 @@
   "author": "Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)",
   "scripts": {
     "build": "bun build.ts",
-    "bench": "bun run bench:bun && bun run bench:node && bun bench/report.ts",
-    "corpus": "bun bench/corpus.ts",
-    "bench:node": "bun build bench/index.ts --target node --packages external --outfile bench/.node.js && node --expose-gc bench/.node.js",
-    "compare": "bun bench/compare.ts",
-    "bench:bun": "bun bench/index.ts"
+    "bench": "bun run --cwd bench"
   },
   "exports": {
     ".": {
@@ -44,15 +40,11 @@
     "@types/bun": "1.4.4",
     "@types/node": "22.20.5",
     "css-select": "7.0.0",
-    "dom-serializer": "3.1.1",
     "domhandler": "6.0.1",
-    "domutils": "4.0.2",
     "htmlparser2": "12.0.0",
-    "lol-html": "2.3.0",
-    "mitata": "1.0.34",
-    "node-html-parser": "9.0.5",
-    "parse5": "8.0.1",
-    "typescript": "7.0.2",
-    "ultrahtml": "1.7.0"
-  }
+    "typescript": "7.0.2"
+  },
+  "workspaces": [
+    "bench"
+  ]
 }

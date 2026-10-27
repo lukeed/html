@@ -1,0 +1,25 @@
+{
+  "name": "bench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "all": "bun run bun && bun run node && bun run report",
+    "bun": "bun index.ts",
+    "node": "bun build index.ts --target node --packages external --outfile .node.js && node --expose-gc .node.js",
+    "report": "bun report.ts",
+    "corpus": "bun corpus.ts",
+    "compare": "bun compare.ts"
+  },
+  "devDependencies": {
+    "css-select": "7.0.0",
+    "dom-serializer": "3.1.1",
+    "domhandler": "6.0.1",
+    "domutils": "4.0.2",
+    "htmlparser2": "12.0.0",
+    "lol-html": "2.3.0",
+    "mitata": "1.0.34",
+    "node-html-parser": "9.0.5",
+    "parse5": "8.0.1",
+    "ultrahtml": "1.7.0"
+  }
+}

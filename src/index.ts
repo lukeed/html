@@ -19,8 +19,8 @@ export type {
  * recovered the same way htmlparser2 does.
  * @example
  * let doc = parse('<title>Hi</title><link rel="canonical" href="/">');
- * doc.query("title")?.text; //=> "Hi"
- * doc.query("link[rel=canonical]")?.attr("href"); //=> "/"
+ * doc.find("title")?.text; //=> "Hi"
+ * doc.find("link[rel=canonical]")?.attr("href"); //=> "/"
  */
 export function parse(source: string): Document {
 	return new node.Document(tree.build(source));
@@ -29,7 +29,7 @@ export function parse(source: string): Document {
 /**
  * The HTML of a node or document, exactly as written in the source.
  * @example
- * let [item] = parse("<ul><li>a</li></ul>").queryAll("li");
+ * let [item] = parse("<ul><li>a</li></ul>").all("li");
  * stringify(item); //=> "<li>a</li>"
  */
 export function stringify(target: Node | Document): string {

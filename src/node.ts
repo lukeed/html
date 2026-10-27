@@ -56,7 +56,7 @@ function children(ctx: Context, id: number): Node[] {
 	return output;
 }
 
-function query(
+function findOne(
 	ctx: Context,
 	id: number,
 	selector: string,
@@ -65,7 +65,7 @@ function query(
 	return found === undefined ? undefined : element(ctx, found);
 }
 
-function queryAll(ctx: Context, id: number, selector: string): Element[] {
+function findAll(ctx: Context, id: number, selector: string): Element[] {
 	return select
 		.all(ctx.tree, id, select.compile(selector))
 		.map((x) => element(ctx, x));
@@ -112,26 +112,26 @@ export class Document {
 	/**
 	 * The first element that matches a CSS selector list.
 	 * @example
-	 * parse('<link rel="canonical" href="/">').query("link[rel=canonical]")?.attr("href"); //=> "/"
+	 * parse('<link rel="canonical" href="/">').find("link[rel=canonical]")?.attr("href"); //=> "/"
 	 */
-	query(selector: string): Element | undefined {
-		return query(this.#ctx, 0, selector);
+	find(selector: string): Element | undefined {
+		return findOne(this.#ctx, 0, selector);
 	}
 
 	/**
 	 * Every element that matches a CSS selector list, in source order.
 	 * @example
-	 * parse("<a></a><a></a>").queryAll("a").length; //=> 2
+	 * parse("<a></a><a></a>").all("a").length; //=> 2
 	 */
-	queryAll(selector: string): Element[] {
-		return queryAll(this.#ctx, 0, selector);
+	all(selector: string): Element[] {
+		return findAll(this.#ctx, 0, selector);
 	}
 
 	/**
 	 * Convert a source offset, like `element.start`, to a line and column.
 	 * @example
 	 * let doc = parse("<p>\n<img>");
-	 * doc.position(doc.query("img")?.start ?? 0); //=> { line: 2, column: 1 }
+	 * doc.position(doc.find("img")?.start ?? 0); //=> { line: 2, column: 1 }
 	 */
 	position(offset: number): Position {
 		let ctx = this.#ctx;
@@ -181,7 +181,7 @@ export class Element {
 	/**
 	 * The tag name. Lowercase, except for case-sensitive SVG names like `clipPath`.
 	 * @example
-	 * parse("<DIV></DIV>").query("div")?.name; //=> "div"
+	 * parse("<DIV></DIV>").find("div")?.name; //=> "div"
 	 */
 	get name(): string {
 		return this.#ctx.tree.name[this.#id];
@@ -205,7 +205,7 @@ export class Element {
 	/**
 	 * The parent element, or the document for top-level elements.
 	 * @example
-	 * parse("<ul><li></li></ul>").query("li")?.parent.type; //=> "element"
+	 * parse("<ul><li></li></ul>").find("li")?.parent.type; //=> "element"
 	 */
 	get parent(): Parent {
 		return parent(this.#ctx, this.#id);
@@ -214,7 +214,7 @@ export class Element {
 	/**
 	 * Child nodes, in source order.
 	 * @example
-	 * parse("<p>a<b>b</b></p>").query("p")?.children.length; //=> 2
+	 * parse("<p>a<b>b</b></p>").find("p")?.children.length; //=> 2
 	 */
 	get children(): Node[] {
 		return children(this.#ctx, this.#id);
@@ -223,7 +223,7 @@ export class Element {
 	/**
 	 * All attributes, with lowercase names and decoded values. Frozen.
 	 * @example
-	 * parse('<a HREF="?a=1&amp;b=2">').query("a")?.attributes; //=> { href: "?a=1&b=2" }
+	 * parse('<a HREF="?a=1&amp;b=2">').find("a")?.attributes; //=> { href: "?a=1&b=2" }
 	 */
 	get attributes(): Readonly<Record<string, string>> {
 		return values.attributes(this.#ctx.tree, this.#id);
@@ -232,7 +232,7 @@ export class Element {
 	/**
 	 * Read one attribute. Names are case-insensitive.
 	 * @example
-	 * parse('<img alt="">').query("img")?.attr("ALT"); //=> ""
+	 * parse('<img alt="">').find("img")?.attr("ALT"); //=> ""
 	 */
 	attr(name: string): string | undefined {
 		let attrs = values.attributes(this.#ctx.tree, this.#id);
@@ -243,7 +243,7 @@ export class Element {
 	/**
 	 * Whether an attribute is present. Names are case-insensitive.
 	 * @example
-	 * parse("<input disabled>").query("input")?.has("disabled"); //=> true
+	 * parse("<input disabled>").find("input")?.has("disabled"); //=> true
 	 */
 	has(name: string): boolean {
 		return Object.hasOwn(
@@ -255,7 +255,7 @@ export class Element {
 	/**
 	 * The decoded text of all descendant text nodes.
 	 * @example
-	 * parse("<p>a &amp; <b>b</b></p>").query("p")?.text; //=> "a & b"
+	 * parse("<p>a &amp; <b>b</b></p>").find("p")?.text; //=> "a & b"
 	 */
 	get text(): string {
 		return values.text(this.#ctx.tree, this.#id);
@@ -264,7 +264,7 @@ export class Element {
 	/**
 	 * The inner HTML, as written in the source.
 	 * @example
-	 * parse("<p>a <b>b</b></p>").query("p")?.html; //=> "a <b>b</b>"
+	 * parse("<p>a <b>b</b></p>").find("p")?.html; //=> "a <b>b</b>"
 	 */
 	get html(): string {
 		let t = this.#ctx.tree;
@@ -274,25 +274,25 @@ export class Element {
 	/**
 	 * The first descendant that matches a CSS selector list.
 	 * @example
-	 * parse("<ul><li>a</li></ul>").query("ul")?.query("li")?.text; //=> "a"
+	 * parse("<ul><li>a</li></ul>").find("ul")?.find("li")?.text; //=> "a"
 	 */
-	query(selector: string): Element | undefined {
-		return query(this.#ctx, this.#id, selector);
+	find(selector: string): Element | undefined {
+		return findOne(this.#ctx, this.#id, selector);
 	}
 
 	/**
 	 * Every descendant that matches a CSS selector list, in source order.
 	 * @example
-	 * parse("<ul><li></li><li></li></ul>").query("ul")?.queryAll("li").length; //=> 2
+	 * parse("<ul><li></li><li></li></ul>").find("ul")?.all("li").length; //=> 2
 	 */
-	queryAll(selector: string): Element[] {
-		return queryAll(this.#ctx, this.#id, selector);
+	all(selector: string): Element[] {
+		return findAll(this.#ctx, this.#id, selector);
 	}
 
 	/**
 	 * Whether this element matches a CSS selector list.
 	 * @example
-	 * parse('<a class="x">').query("a")?.matches(".x"); //=> true
+	 * parse('<a class="x">').find("a")?.matches(".x"); //=> true
 	 */
 	matches(selector: string): boolean {
 		return select.matches(this.#ctx.tree, this.#id, select.compile(selector));
@@ -301,7 +301,7 @@ export class Element {
 	/**
 	 * The closest ancestor, or this element, that matches a CSS selector list.
 	 * @example
-	 * parse("<nav><a></a></nav>").query("a")?.closest("nav")?.name; //=> "nav"
+	 * parse("<nav><a></a></nav>").find("a")?.closest("nav")?.name; //=> "nav"
 	 */
 	closest(selector: string): Element | undefined {
 		let t = this.#ctx.tree;

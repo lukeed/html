@@ -87,7 +87,7 @@ summary(() => {
 		bench("@lukeed/html (eager: every attribute + text)", () => {
 			for (let page of pages) {
 				let doc = html.parse(page);
-				for (let el of doc.queryAll("*")) {
+				for (let el of doc.all("*")) {
 					do_not_optimize(el.attributes);
 					for (let node of el.children)
 						if (node.type === "text") do_not_optimize(node.value);
@@ -125,18 +125,16 @@ summary(() => {
 			for (let page of pages) {
 				let doc = html.parse(page);
 				let seo: Seo = {
-					title: doc.query("head > title")?.text,
+					title: doc.find("head > title")?.text,
 					description: doc
-						.queryAll("meta[name=description]")
+						.all("meta[name=description]")
 						.map((x) => x.attr("content")),
 					viewport: doc
-						.queryAll("meta[name=viewport]")
+						.all("meta[name=viewport]")
 						.map((x) => x.attr("content")),
-					canonical: doc
-						.queryAll("link[rel=canonical]")
-						.map((x) => x.attr("href")),
-					links: doc.queryAll("a").map((x) => x.attr("href")),
-					images: doc.queryAll("img").map((x) => x.attr("alt")),
+					canonical: doc.all("link[rel=canonical]").map((x) => x.attr("href")),
+					links: doc.all("a").map((x) => x.attr("href")),
+					images: doc.all("img").map((x) => x.attr("alt")),
 				};
 				do_not_optimize(seo);
 			}

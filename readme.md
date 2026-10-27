@@ -23,10 +23,10 @@ let doc = parse(
   `<head><title>Hi &amp; bye</title><link rel="canonical" href="/"></head>`,
 );
 
-doc.query("head > title")?.text; //=> "Hi & bye"
-doc.query("link[rel=canonical]")?.attr("href"); //=> "/"
+doc.find("head > title")?.text; //=> "Hi & bye"
+doc.find("link[rel=canonical]")?.attr("href"); //=> "/"
 
-for (let img of doc.queryAll("img:not([alt])")) {
+for (let img of doc.all("img:not([alt])")) {
   let { line, column } = doc.position(img.start);
   console.log(`${line}:${column}`, stringify(img));
 }
@@ -45,7 +45,7 @@ Return the source of a node or document, exactly as written.
 ### Document
 
 - `source`, `start`, `end`, `children`
-- `query(selector)` and `queryAll(selector)`
+- `find(selector)` and `all(selector)`
 - `position(offset)` returns `{ line, column }`, both 1-based.
 
 ### Element
@@ -54,7 +54,7 @@ Return the source of a node or document, exactly as written.
 - `attributes` is a frozen object with lowercase names and decoded values.
 - `attr(name)` and `has(name)` ignore the case of `name`.
 - `text` is the decoded text of all descendants. `html` is the inner source.
-- `query(selector)`, `queryAll(selector)`, `matches(selector)`, `closest(selector)`
+- `find(selector)`, `all(selector)`, `matches(selector)`, `closest(selector)`
 
 ### Text, Comment, Directive
 

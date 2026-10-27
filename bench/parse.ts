@@ -1,20 +1,20 @@
 import { parseDocument } from "htmlparser2";
-import { bench, do_not_optimize, group, summary } from "mitata";
 import { parse as nhp } from "node-html-parser";
 import { parse as parse5 } from "parse5";
 import { parse as ultra } from "ultrahtml";
 
 import * as html from "../src/index";
 import * as mutable from "../src/mutable/index";
-import * as corpus from "./corpus";
+import * as suite from "./suite";
 
-const pages = (await corpus.load()).map((x) => x.html);
+import type { Suite } from "./suite";
+
+type Item = { name: string; attrs: [string, string][]; children: unknown[] };
 
 /**
  * Build a full tree from Bun's HTMLRewriter callbacks.
  */
-function rewriterTree(source: string): unknown {
-	type Item = { name: string; attrs: [string, string][]; children: unknown[] };
+function rewriterTree(source: string): Item {
 	let root: Item = { name: "#document", attrs: [], children: [] };
 	let stack = [root];
 
@@ -47,49 +47,44 @@ function rewriterTree(source: string): unknown {
 	return root;
 }
 
-summary(() => {
-	group("parse: full tree", () => {
-		bench("@lukeed/html", () => {
-			for (let page of pages) do_not_optimize(html.parse(page));
-		})
-			.baseline(true)
-			.gc("inner");
-
-		bench("@lukeed/html (eager: every attribute + text)", () => {
-			for (let page of pages) {
-				let doc = html.parse(page);
-				for (let el of doc.all("*")) {
-					do_not_optimize(el.attributes);
-					for (let node of el.children)
-						if (node.type === "text") do_not_optimize(node.value);
-				}
-			}
-		}).gc("inner");
-
-		bench("@lukeed/html/mutable", () => {
-			for (let page of pages) do_not_optimize(mutable.parse(page));
-		}).gc("inner");
-
-		bench("htmlparser2", () => {
-			for (let page of pages) do_not_optimize(parseDocument(page));
-		}).gc("inner");
-
-		bench("ultrahtml", () => {
-			for (let page of pages) do_not_optimize(ultra(page));
-		}).gc("inner");
-
-		bench("node-html-parser", () => {
-			for (let page of pages) do_not_optimize(nhp(page));
-		}).gc("inner");
-
-		bench("parse5", () => {
-			for (let page of pages) do_not_optimize(parse5(page));
-		}).gc("inner");
-
-		if (typeof HTMLRewriter !== "undefined") {
-			bench("Bun HTMLRewriter → tree", () => {
-				for (let page of pages) do_not_optimize(rewriterTree(page));
-			}).gc("inner");
-		}
-	});
-});
+export const parse: Suite = {
+	id: "parse",
+	title: "parse",
+	about:
+		'Parse each page into a full tree and keep it. @lukeed/html reads attributes and text lazily, so its "read all" row also reads every attribute and text value, which is the work the other parsers always do.',
+	candidates: [
+		{ name: "@lukeed/html", run: (xs) => xs.map((x) => html.parse(x.html)) },
+		{
+			name: "@lukeed/html, read all",
+			run(xs) {
+				return xs.map((x) => {
+					let doc = html.parse(x.html);
+					let output: unknown[] = [];
+					for (let el of doc.all("*")) {
+						output.push(el.attributes);
+						for (let node of el.children)
+							if (node.type === "text") output.push(node.value);
+					}
+					return [doc, output];
+				});
+			},
+		},
+		{
+			name: "@lukeed/html/mutable",
+			run: (xs) => xs.map((x) => mutable.parse(x.html)),
+		},
+		{ name: "ultrahtml", run: (xs) => xs.map((x) => ultra(x.html)) },
+		{ name: "htmlparser2", run: (xs) => xs.map((x) => parseDocument(x.html)) },
+		{ name: "node-html-parser", run: (xs) => xs.map((x) => nhp(x.html)) },
+		{ name: "parse5", run: (xs) => xs.map((x) => parse5(x.html)) },
+		...(suite.REWRITER
+			? [
+					{
+						name: "Bun HTMLRewriter → tree",
+						run: (xs: { html: string }[]) =>
+							xs.map((x) => rewriterTree(x.html)),
+					},
+				]
+			: []),
+	],
+};

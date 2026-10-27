@@ -10,10 +10,11 @@
     "build": "bun run build:js && bun run build:types",
     "build:js": "bun build src/index.ts src/mutable/index.ts --root src --outdir dist --target node --packages external --splitting --minify",
     "build:types": "tsc -p tsconfig.build.json",
-    "bench": "bun bench/index.ts",
+    "bench": "bun run bench:bun && bun run bench:node && bun bench/report.ts",
     "corpus": "bun bench/corpus.ts",
     "bench:node": "bun build bench/index.ts --target node --packages external --outfile bench/.node.js && node --expose-gc bench/.node.js",
-    "compare": "bun bench/compare.ts"
+    "compare": "bun bench/compare.ts",
+    "bench:bun": "bun bench/index.ts"
   },
   "exports": {
     ".": {

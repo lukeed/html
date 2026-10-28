@@ -156,7 +156,9 @@ export function attributes(
 export function value(t: Tree, id: number): string {
 	let raw = t.source.slice(t.from[id], t.to[id]);
 	if (t.kind[id] !== tree.TEXT || !raw.includes("&")) return raw;
-	return LITERAL.has(t.name[t.parent[id]]) ? raw : decodeHTML(raw);
+	let p = t.parent[id];
+	let literal = LITERAL.has(t.name[p]) && !tree.foreign(t, t.parent[p]);
+	return literal ? raw : decodeHTML(raw);
 }
 
 /**

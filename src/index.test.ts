@@ -104,6 +104,14 @@ describe("Element", () => {
 		expect(doc.find("script")?.text).toBe('if (a < b) "&amp;"');
 	});
 
+	test("text decodes raw text names inside foreign content", () => {
+		let svg = html.parse(
+			"<svg><style>a&amp;b</style></svg><style>&amp;</style>",
+		);
+		expect(svg.find("svg style")?.text).toBe("a&b");
+		expect(svg.find("style:not(svg style)")?.text).toBe("&amp;");
+	});
+
 	test("html is the inner source", () => {
 		expect(doc.find("p")?.html).toBe("One <b>two</b> &lt;three&gt;");
 	});

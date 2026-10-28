@@ -258,6 +258,38 @@ describe("name", () => {
 		expect(mutable.stringify(doc)).toBe("<script>a < b</script>");
 	});
 
+	test("follows the parser's rules for the context", () => {
+		let doc = mutable.parse("<div></div><p></p><svg><g></g><image/></svg>");
+		let [div, p, g, image] = ["div", "p", "g", "image"].map((x) => doc.find(x));
+		if (div) div.name = "clipPath";
+		if (p) p.name = "image";
+		if (g) g.name = "clippath";
+		if (image) image.name = "IMAGE";
+		expect([div, p, g, image].map((x) => x?.name)).toEqual([
+			"clippath",
+			"img",
+			"clipPath",
+			"image",
+		]);
+		let out = mutable.stringify(doc);
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
+	});
+
+	test("rejects raw text elements with element children", () => {
+		let doc = mutable.parse(
+			"<div><b>x</b></div><p>y</p><svg><g><b/></g></svg>",
+		);
+		let [div, p, g] = ["div", "p", "g"].map((x) => doc.find(x));
+		expect(() => {
+			if (div) div.name = "script";
+		}).toThrow(TypeError);
+		if (p) p.name = "title";
+		if (g) g.name = "title";
+		expect(mutable.stringify(doc)).toBe(
+			"<div><b>x</b></div><title>y</title><svg><title><b/></title></svg>",
+		);
+	});
+
 	test("rejects invalid names", () => {
 		let div = mutable.parse("<div>").find("div");
 		for (let bad of ["", "1a", "a b", "a>", "a/b", 'a"']) {
@@ -299,6 +331,24 @@ describe("text and html", () => {
 		expect(doc.find("li")?.start).toBeUndefined();
 	});
 
+	test("html setter parses in the context of the element", () => {
+		let doc = mutable.parse(
+			"<svg><g></g><foreignObject></foreignObject></svg><div></div>",
+		);
+		let [g, fo, div] = ["g", "foreignObject", "div"].map((x) => doc.find(x));
+		if (g) g.html = "<path/><lineargradient/>";
+		if (fo) fo.html = "<p/>x";
+		if (div) div.html = "<path/>x";
+		expect(g?.children.map((x) => x.type === "element" && x.name)).toEqual([
+			"path",
+			"linearGradient",
+		]);
+		expect(fo?.find("p")?.text).toBe("x");
+		expect(div?.find("path")?.text).toBe("x");
+		let out = mutable.stringify(doc);
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
+	});
+
 	test("html setter on raw text elements sets text", () => {
 		let doc = mutable.parse("<title>a</title><style>x</style>");
 		let title = doc.find("title");
@@ -330,6 +380,17 @@ describe("text and html", () => {
 		expect(a && mutable.stringify(a)).toBe("a&lt;b");
 		a?.remove();
 		expect(a && mutable.stringify(a)).toBe("a<b");
+	});
+
+	test("text in foreign raw text names is escaped", () => {
+		let doc = mutable.parse("<svg><style>a</style></svg>");
+		let style = doc.find("style");
+		if (style) style.html = "<b>&amp;";
+		expect(style?.children.map((x) => x.type)).toEqual(["element"]);
+		if (style) style.text = "<&>";
+		expect(mutable.stringify(doc)).toBe(
+			"<svg><style>&lt;&amp;&gt;</style></svg>",
+		);
 	});
 
 	test("text value setter", () => {

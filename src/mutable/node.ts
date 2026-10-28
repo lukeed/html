@@ -291,9 +291,10 @@ export class Element extends Child {
 
 	/**
 	 * The tag name. Lowercase, except for case-sensitive SVG names like `clipPath`.
-	 * Setting it renames the element, with the same case rules.
+	 * Setting it renames the element, with the parser's name rules for where it is.
 	 * @throws {SyntaxError} when set to an invalid tag name.
-	 * @throws {TypeError} when set to a void element, like `img`, while there are children.
+	 * @throws {TypeError} when set to a void element, like `img`, while there are
+	 * children, or to a raw text element, like `script`, while there are child elements.
 	 * @example
 	 * let doc = parse("<h2>a</h2>");
 	 * doc.find("h2")!.name = "H3";
@@ -305,8 +306,7 @@ export class Element extends Child {
 
 	set name(input: string) {
 		if (!TAG.test(input)) throw new SyntaxError(`Invalid tag name: "${input}"`);
-		let name = input.toLowerCase();
-		state.rename(read(this), tree.SVG.get(name) ?? name);
+		state.rename(read(this), input);
 	}
 
 	/** Child nodes, in order. A new array on every read. */
@@ -387,7 +387,8 @@ export class Element extends Child {
 	}
 
 	/**
-	 * The inner HTML. Setting it parses the HTML and replaces every child.
+	 * The inner HTML. Setting it parses the HTML where this element is, like
+	 * inside `<svg>`, and replaces every child.
 	 * @example
 	 * let doc = parse("<p>a</p>");
 	 * doc.find("p")!.html = "<b>b</b>";
@@ -400,11 +401,11 @@ export class Element extends Child {
 	set html(input: string) {
 		let s = read(this);
 		let doc = state.docOf(s);
-		if (tree.RAW.has(s.name)) {
+		if (tree.RAW.has(s.name) && !state.within(s)) {
 			let raw = values.LITERAL.has(s.name) ? input : decodeHTML(input);
 			state.replaceChildren(s, [state.textNode(doc, raw)]);
 		} else {
-			state.replaceChildren(s, state.fragment(doc, input));
+			state.replaceChildren(s, state.fragment(doc, input, state.foreign(s)));
 		}
 	}
 

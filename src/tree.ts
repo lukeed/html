@@ -39,6 +39,8 @@ export type Tree = {
 	attrs: (Readonly<Record<string, string>> | undefined)[];
 	/** Element ids by tag name, built on first query. */
 	tags: Map<string, number[]> | undefined;
+	/** The source was parsed as foreign content, like the inside of `<svg>`. */
+	foreign: boolean;
 };
 
 export const RAW = new Set([
@@ -75,9 +77,11 @@ export const VOID = new Set([
 	"wbr",
 ]);
 
-const FOREIGN = new Set(["math", "svg"]);
+/** Elements whose children are foreign content. */
+export const FOREIGN = new Set(["math", "svg"]);
 
-const INTEGRATION = new Set([
+/** Elements whose children are HTML again, inside foreign content. */
+export const INTEGRATION = new Set([
 	"mi",
 	"mo",
 	"mn",
@@ -280,10 +284,22 @@ function closing(source: string, name: string, from: number): number {
 }
 
 /**
- * Build a {@link Tree} from HTML source.
+ * Whether the children of node `id` are foreign content, like the inside of `<svg>`.
+ */
+export function foreign(t: Tree, id: number): boolean {
+	for (let x = id; x > 0; x = t.parent[x]) {
+		if (FOREIGN.has(t.name[x])) return true;
+		if (INTEGRATION.has(t.name[x])) return false;
+	}
+	return t.foreign;
+}
+
+/**
+ * Build a {@link Tree} from HTML source, or from foreign content when
+ * `foreign` is set, like the inside of `<svg>`.
  * Tree construction follows htmlparser2, not the WHATWG spec.
  */
-export function build(source: string): Tree {
+export function build(source: string, foreign = false): Tree {
 	let n = source.length;
 	let size = 1;
 	let capacity = Math.max(64, n >> 4);
@@ -300,7 +316,7 @@ export function build(source: string): Tree {
 	end[0] = to[0] = n;
 
 	let stack = [0];
-	let contexts: boolean[] = [];
+	let contexts: boolean[] = foreign ? [true] : [];
 	let owners: number[] = [];
 	let text = 0;
 	let i = 0;
@@ -492,5 +508,6 @@ export function build(source: string): Tree {
 		pairs: new Array(size),
 		attrs: new Array(size),
 		tags: undefined,
+		foreign,
 	};
 }

@@ -110,7 +110,7 @@ stringify(doc); //=> '<ul><li class="first">a</li><li>b</li></ul>'
 
 `clone()` returns a deep copy with no parent, in the same document. It keeps the `start` and `end` of the original.
 
-Insert methods take nodes or strings. Strings are inserted as text, not HTML; use the `html` setter or `parse(html).children` for HTML. Nodes move from wherever they are, including from another document.
+Insert methods take nodes or strings. Strings are inserted as text, not HTML; use the `html` setter or `parse(html).children` for HTML. The `html` setter parses in the context of the element, so `<path/>` inside `<svg>` is self-closing. `parse()` always starts in an HTML context. Nodes move from wherever they are, including from another document.
 
 Reads and selectors see every edit. `stringify()` copies unedited parts from the source as written, and rebuilds only edited parts, with values escaped. In a rebuilt tag, unedited attributes are copied as written, and edited attributes keep their name as written, like `viewBox`. A new attribute is written as given to `setAttr()`. `start` and `end` always refer to the original `document.source`; they are `undefined` for nodes that were not parsed from it.
 

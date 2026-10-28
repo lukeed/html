@@ -227,8 +227,8 @@ export function textNode(doc: State, input: string): State {
 /**
  * Parse an HTML fragment into new top-level states for `doc`.
  */
-export function fragment(doc: State, html: string): State[] {
-	return load(tree.build(html), doc);
+export function fragment(doc: State, html: string, foreign: boolean): State[] {
+	return load(tree.build(html, foreign), doc);
 }
 
 /**
@@ -262,12 +262,26 @@ export function removeAttribute(s: State, key: string): void {
 }
 
 /**
- * Rename element `s`.
- * @throws {TypeError} when `name` is a void element and `s` has children.
+ * Rename element `s` to `input`, with the parser's name rules for where `s` is.
+ * @throws {TypeError} when the name is a void element and `s` has children,
+ * or a raw text element, like `script`, and `s` has child elements.
  */
-export function rename(s: State, name: string): void {
+export function rename(s: State, input: string): void {
+	let lower = input.toLowerCase();
+	let inside = within(s);
+	let name = inside
+		? (tree.SVG.get(lower) ?? lower)
+		: lower === "image"
+			? "img"
+			: lower;
 	if (tree.VOID.has(name) && s.children.length > 0) {
 		throw new TypeError(`Cannot rename <${s.name}> with children to <${name}>`);
+	}
+	let raw = !inside && tree.RAW.has(name);
+	if (raw && s.children.some((x) => x.kind === "element")) {
+		throw new TypeError(
+			`Cannot rename <${s.name}> with child elements to <${name}>`,
+		);
 	}
 	s.name = name;
 	s.changed = true;
@@ -407,10 +421,40 @@ function content(s: State): string {
 }
 
 /**
- * How text inside an element is written: escaped, raw like `<title>`, or literal like `<script>`.
+ * Whether the children of `s` are foreign content, like the inside of `<svg>`.
  */
-function mode(name: string): number {
-	return !tree.RAW.has(name) ? 0 : values.LITERAL.has(name) ? 2 : 1;
+export function foreign(s: State): boolean {
+	if (s.kind !== "element") return false;
+	if (tree.FOREIGN.has(s.name)) return true;
+	if (tree.INTEGRATION.has(s.name)) return false;
+	return within(s);
+}
+
+/**
+ * Whether `s` is in foreign content. A detached node keeps the context it was parsed in.
+ */
+export function within(s: State): boolean {
+	if (s.parent) return foreign(s.parent);
+	let t = s.tree;
+	return (
+		t !== undefined && s.kind !== "document" && tree.foreign(t, t.parent[s.id])
+	);
+}
+
+/**
+ * How text is written in an element: escaped, raw like `<title>`, or literal like `<script>`.
+ */
+function mode(name: string, foreign: boolean): number {
+	if (foreign || !tree.RAW.has(name)) return 0;
+	return values.LITERAL.has(name) ? 2 : 1;
+}
+
+/**
+ * How text is written in `s`, where it is now.
+ */
+function current(s: State | undefined): number {
+	if (!s || s.kind !== "element" || !tree.RAW.has(s.name)) return 0;
+	return mode(s.name, within(s));
 }
 
 /**
@@ -419,7 +463,11 @@ function mode(name: string): number {
 function misplaced(s: State): boolean {
 	let t = s.tree;
 	if (s.kind !== "text" || !t || !s.parent) return false;
-	return mode(s.parent.name) !== mode(t.name[t.parent[s.id]]);
+	let p = t.parent[s.id];
+	let before = tree.RAW.has(t.name[p])
+		? mode(t.name[p], tree.foreign(t, t.parent[p]))
+		: 0;
+	return current(s.parent) !== before;
 }
 
 /**
@@ -431,10 +479,8 @@ export function serialize(s: State): string {
 	switch (s.kind) {
 		case "document":
 			return content(s);
-		case "text": {
-			let raw = s.parent && values.LITERAL.has(s.parent.name);
-			return raw ? value(s) : escapeText(value(s));
-		}
+		case "text":
+			return current(s.parent) === 2 ? value(s) : escapeText(value(s));
 		case "comment":
 			return `<!--${value(s)}-->`;
 		case "directive":

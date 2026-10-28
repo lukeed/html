@@ -313,6 +313,37 @@ describe("children", () => {
 		expect(mutable.stringify(to)).toBe("<div><p>x</p></div>");
 	});
 
+	test("clone() makes a detached deep copy", () => {
+		let doc = mutable.parse('<svg><g id=a><path d="M0"/><!--c--></g></svg>');
+		let g = doc.find("g");
+		g?.setAttr("class", "x");
+		let copy = g?.clone();
+		expect(copy).not.toBe(g);
+		expect(copy?.parent).toBeUndefined();
+		expect(copy?.document).toBe(doc);
+		expect(copy && mutable.stringify(copy)).toBe(
+			'<g id=a class="x"><path d="M0"/><!--c--></g>',
+		);
+
+		copy?.setAttr("id", "b");
+		copy?.find("path")?.setAttr("d", "M1");
+		if (copy) doc.find("svg")?.append(copy);
+		expect(mutable.stringify(doc)).toBe(
+			'<svg><g id=a class="x"><path d="M0"/><!--c--></g><g id="b" class="x"><path d="M1"/><!--c--></g></svg>',
+		);
+		expect(doc.all("path").map((x) => x.getAttr("d"))).toEqual(["M0", "M1"]);
+	});
+
+	test("clone() works on every child node", () => {
+		let doc = mutable.parse("<!doctype html><!--c-->t");
+		let copies = doc.children.map((x) => x.clone());
+		expect(copies.map((x) => x.type)).toEqual(["directive", "comment", "text"]);
+		doc.append(...copies);
+		expect(mutable.stringify(doc)).toBe(
+			"<!doctype html><!--c-->t<!doctype html><!--c-->t",
+		);
+	});
+
 	test("rejects invalid inserts", () => {
 		let doc = mutable.parse("<div><p>x</p></div><img>");
 		let div = doc.find("div");
@@ -402,7 +433,12 @@ describe("reads", () => {
 			'<template><p class="x">a</p></template><p class="x">b</p>',
 		);
 		expect(doc.all(".x").map((x) => x.text)).toEqual(["b"]);
-		expect(doc.find("template")?.all(".x").map((x) => x.text)).toEqual(["a"]);
+		expect(
+			doc
+				.find("template")
+				?.all(".x")
+				.map((x) => x.text),
+		).toEqual(["a"]);
 	});
 
 	test(":empty sees edits", () => {

@@ -69,6 +69,12 @@ function parent(s: State): Parent | undefined {
 		: undefined;
 }
 
+function copy<T extends Node>(type: new (s: State) => T, node: T): T {
+	let found = view(state.clone(read(node)));
+	if (found instanceof type) return found;
+	throw new TypeError(`Expected a copy of ${node.type}`);
+}
+
 function contents(target: State, items: Content[]): State[] {
 	let doc = state.docOf(target);
 	return items.map((x) =>
@@ -421,6 +427,19 @@ export class Element extends Child {
 	}
 
 	/**
+	 * A deep copy, with no parent, in the same document. Unedited parts still
+	 * serialize as written.
+	 * @example
+	 * let doc = parse("<ul><li>a</li></ul>");
+	 * let li = doc.find("li")?.clone();
+	 * if (li) doc.find("ul")?.append(li);
+	 * stringify(doc); //=> "<ul><li>a</li><li>a</li></ul>"
+	 */
+	clone(): Element {
+		return copy(Element, this);
+	}
+
+	/**
 	 * Add nodes or text to the end of this element.
 	 * @throws {TypeError} on void elements, like `<img>`.
 	 * @example
@@ -468,6 +487,16 @@ export class Text extends Child {
 	set value(input: string) {
 		state.setValue(read(this), input);
 	}
+
+	/**
+	 * A copy, with no parent, in the same document.
+	 * @example
+	 * let [node] = parse("a").children;
+	 * if (node.type === "text") node.after(node.clone());
+	 */
+	clone(): Text {
+		return copy(Text, this);
+	}
 }
 
 /**
@@ -492,6 +521,16 @@ export class Comment extends Child {
 			throw new SyntaxError('A comment cannot contain "-->"');
 		state.setValue(read(this), input);
 	}
+
+	/**
+	 * A copy, with no parent, in the same document.
+	 * @example
+	 * let [node] = parse("<!--a-->").children;
+	 * if (node.type === "comment") node.after(node.clone());
+	 */
+	clone(): Comment {
+		return copy(Comment, this);
+	}
 }
 
 /**
@@ -515,6 +554,16 @@ export class Directive extends Child {
 		if (input.includes(">"))
 			throw new SyntaxError('A directive cannot contain ">"');
 		state.setValue(read(this), input);
+	}
+
+	/**
+	 * A copy, with no parent, in the same document.
+	 * @example
+	 * let [node] = parse("<!doctype html>").children;
+	 * if (node.type === "directive") node.after(node.clone());
+	 */
+	clone(): Directive {
+		return copy(Directive, this);
 	}
 }
 

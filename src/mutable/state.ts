@@ -205,6 +205,19 @@ export function insert(parent: State, index: number, items: State[]): void {
 	touch(parent);
 }
 
+/**
+ * A deep copy of `s` without a parent. Unedited parts still serialize from the source as written.
+ */
+export function clone(s: State): State {
+	let copy: State = { ...s, parent: undefined, children: [], view: undefined };
+	for (let child of s.children) {
+		let next = clone(child);
+		next.parent = copy;
+		copy.children.push(next);
+	}
+	return copy;
+}
+
 export function textNode(doc: State, input: string): State {
 	let s = create("text", doc);
 	s.value = input;

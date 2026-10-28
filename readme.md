@@ -103,9 +103,11 @@ stringify(doc); //=> '<ul><li class="first">a</li><li>b</li></ul>'
 ```
 
 - `Element`: `setAttr(name, value)`, `removeAttr(name)`, the `text` and `html` setters, `append()`, `prepend()`
-- `Element`, `Text`, `Comment`, `Directive`: `before()`, `after()`, `replace()`, `remove()`
+- `Element`, `Text`, `Comment`, `Directive`: `before()`, `after()`, `replace()`, `remove()`, `clone()`
 - `Text`, `Comment`, `Directive`: the `value` setter
 - `Document`: `append()`, `prepend()`
+
+`clone()` returns a deep copy with no parent, in the same document. It keeps the `start` and `end` of the original.
 
 Insert methods take nodes or strings. Strings are inserted as text, not HTML; use the `html` setter or `parse(html).children` for HTML. Nodes move from wherever they are, including from another document.
 

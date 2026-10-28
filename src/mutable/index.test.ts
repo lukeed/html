@@ -295,6 +295,35 @@ describe("children", () => {
 		expect(mutable.stringify(doc)).toBe("<p>a!<p>b");
 	});
 
+	test("self-closing tags stay valid after edits", () => {
+		let doc = mutable.parse('<svg><path d="M0"/><path d="M1"/></svg>');
+		doc.find("path")?.setAttr("fill", "red");
+		expect(mutable.stringify(doc)).toBe(
+			'<svg><path d="M0" fill="red"/><path d="M1"/></svg>',
+		);
+
+		doc = mutable.parse("<svg><g/></svg>");
+		let path = mutable.parse('<svg><path d="M2"/></svg>').find("path");
+		if (path) doc.find("g")?.append(path);
+		expect(mutable.stringify(doc)).toBe('<svg><g><path d="M2"/></g></svg>');
+
+		doc = mutable.parse("<svg><title/></svg>");
+		let title = doc.find("title");
+		if (title) title.text = "Hi";
+		expect(mutable.stringify(doc)).toBe("<svg><title>Hi</title></svg>");
+
+		doc = mutable.parse("<svg><g/></svg>");
+		let g = doc.find("g");
+		g?.append("x");
+		if (g) g.html = "";
+		expect(mutable.stringify(doc)).toBe("<svg><g/></svg>");
+
+		doc = mutable.parse("<br/><a href=/x/>");
+		doc.find("br")?.setAttr("class", "y");
+		doc.find("a")?.append("z");
+		expect(mutable.stringify(doc)).toBe('<br class="y"/><a href="/x/">z</a>');
+	});
+
 	test("new elements serialize with closing tags", () => {
 		let doc = mutable.parse("<div></div>");
 		let div = doc.find("div");

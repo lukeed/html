@@ -231,12 +231,20 @@ export function replaceChildren(s: State, items: State[]): void {
 	insert(s, 0, items);
 }
 
-function open(s: State): string {
+function open(s: State, bare: boolean): string {
 	let output = "<" + s.name;
 	for (let [key, val] of Object.entries(attributes(s))) {
 		output += val === "" ? " " + key : ` ${key}="${escapeAttribute(val)}"`;
 	}
-	return output + ">";
+	return output + (bare ? "/>" : ">");
+}
+
+/**
+ * Whether the source tag of `s` ends with `/>` and has nothing parsed inside it.
+ */
+function selfClosed(t: Tree, s: State): boolean {
+	let at = t.from[s.id];
+	return at === t.end[s.id] && s.source.charCodeAt(at - 2) === 47;
 }
 
 /**
@@ -274,14 +282,16 @@ export function serialize(s: State): string {
 			return `<!${value(s)}>`;
 		case "element": {
 			let t = s.tree;
-			let head =
-				t && !s.changed ? s.source.slice(s.start, t.from[s.id]) : open(s);
-			let tail = t
-				? s.source.slice(t.to[s.id], s.end)
-				: tree.VOID.has(s.name)
-					? ""
-					: `</${s.name}>`;
-			return head + s.children.map(serialize).join("") + tail;
+			let content = s.children.map(serialize).join("");
+			let bare = t !== undefined && selfClosed(t, s);
+			if (t && !(bare && s.children.length > 0)) {
+				let head = s.changed
+					? open(s, bare)
+					: s.source.slice(s.start, t.from[s.id]);
+				return head + content + s.source.slice(t.to[s.id], s.end);
+			}
+			let tail = tree.VOID.has(s.name) ? "" : `</${s.name}>`;
+			return open(s, false) + content + tail;
 		}
 	}
 }

@@ -102,7 +102,7 @@ doc.find("ul")?.append(...parse("<li>b</li>").children);
 stringify(doc); //=> '<ul><li class="first">a</li><li>b</li></ul>'
 ```
 
-- `Element`: `setAttr(name, value)`, `removeAttr(name)`, the `text` and `html` setters, `append()`, `prepend()`
+- `Element`: `setAttr(name, value)`, `removeAttr(name)`, the `name`, `text`, and `html` setters, `append()`, `prepend()`
 - `Element`, `Text`, `Comment`, `Directive`: `before()`, `after()`, `replace()`, `remove()`, `clone()`
 - `Text`, `Comment`, `Directive`: the `value` setter
 - `Document`: `append()`, `prepend()`

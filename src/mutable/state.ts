@@ -261,6 +261,19 @@ export function removeAttribute(s: State, key: string): void {
 	touch(s);
 }
 
+/**
+ * Rename element `s`.
+ * @throws {TypeError} when `name` is a void element and `s` has children.
+ */
+export function rename(s: State, name: string): void {
+	if (tree.VOID.has(name) && s.children.length > 0) {
+		throw new TypeError(`Cannot rename <${s.name}> with children to <${name}>`);
+	}
+	s.name = name;
+	s.changed = true;
+	touch(s);
+}
+
 export function setValue(s: State, input: string): void {
 	s.value = input;
 	s.changed = true;
@@ -341,7 +354,8 @@ export function serialize(s: State): string {
 			let t = s.tree;
 			let content = s.children.map(serialize).join("");
 			let bare = t !== undefined && selfClosed(t, s);
-			if (t && !(bare && s.children.length > 0)) {
+			let own = t !== undefined && s.name === t.name[s.id];
+			if (t && own && !(bare && s.children.length > 0)) {
 				let head = s.changed
 					? open(s, bare)
 					: s.source.slice(s.start, t.from[s.id]);

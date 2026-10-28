@@ -177,6 +177,60 @@ describe("attributes", () => {
 	});
 });
 
+describe("name", () => {
+	test("renames an element and its closing tag", () => {
+		let doc = mutable.parse("<h2 id=a>T <b>x</b></h2><ul><li>a<li>b</ul>");
+		let h2 = doc.find("h2");
+		let li = doc.find("li");
+		if (h2) h2.name = "H5";
+		if (li) li.name = "p";
+		expect(h2?.name).toBe("h5");
+		expect(doc.find("h5")).toBe(h2);
+		expect(doc.find("h2")).toBeUndefined();
+		expect(mutable.stringify(doc)).toBe(
+			"<h5 id=a>T <b>x</b></h5><ul><p>a</p><li>b</ul>",
+		);
+	});
+
+	test("uses SVG case and closes self-closed tags", () => {
+		let doc = mutable.parse('<svg><path d="M0"/></svg>');
+		let path = doc.find("path");
+		if (path) path.name = "LINEARGRADIENT";
+		expect(path?.name).toBe("linearGradient");
+		expect(mutable.stringify(doc)).toBe(
+			'<svg><linearGradient d="M0"></linearGradient></svg>',
+		);
+	});
+
+	test("handles void elements", () => {
+		let doc = mutable.parse("<br/><img src=a><div>x</div>");
+		let [br, img, div] = ["br", "img", "div"].map((x) => doc.find(x));
+		if (br) br.name = "hr";
+		if (img) img.name = "span";
+		expect(() => {
+			if (div) div.name = "img";
+		}).toThrow(TypeError);
+		expect(div?.name).toBe("div");
+		expect(mutable.stringify(doc)).toBe("<hr><span src=a></span><div>x</div>");
+	});
+
+	test("rewrites text for raw text elements", () => {
+		let doc = mutable.parse("<div>a &lt; b</div>");
+		let div = doc.find("div");
+		if (div) div.name = "script";
+		expect(mutable.stringify(doc)).toBe("<script>a < b</script>");
+	});
+
+	test("rejects invalid names", () => {
+		let div = mutable.parse("<div>").find("div");
+		for (let bad of ["", "1a", "a b", "a>", "a/b", 'a"']) {
+			expect(() => {
+				if (div) div.name = bad;
+			}).toThrow(SyntaxError);
+		}
+	});
+});
+
 describe("text and html", () => {
 	test("text setter replaces children and escapes", () => {
 		let doc = mutable.parse("<p>a <b>b</b></p>");

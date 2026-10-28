@@ -89,7 +89,8 @@ const INTEGRATION = new Set([
 	"title",
 ]);
 
-const SVG = new Map(
+/** Case-sensitive SVG tag names, by lowercase name. */
+export const SVG = new Map(
 	[
 		"altGlyph",
 		"altGlyphDef",

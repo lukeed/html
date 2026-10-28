@@ -17,6 +17,7 @@ export type Parent = Element | Document;
 export type Content = Node | string;
 
 const NAME = /^[^\s"'>/=]+$/;
+const TAG = /^[a-z][^\s"'<>/=]*$/i;
 
 let read: (node: Base) => State;
 const LINES = new WeakMap<State, number[]>();
@@ -280,12 +281,23 @@ export class Element extends Child {
 	readonly type: "element" = "element";
 
 	/**
-	 * The tag name.
+	 * The tag name. Lowercase, except for case-sensitive SVG names like `clipPath`.
+	 * Setting it renames the element, with the same case rules.
+	 * @throws {SyntaxError} when set to an invalid tag name.
+	 * @throws {TypeError} when set to a void element, like `img`, while there are children.
 	 * @example
-	 * parse("<DIV></DIV>").find("div")?.name; //=> "div"
+	 * let doc = parse("<h2>a</h2>");
+	 * doc.find("h2")!.name = "H3";
+	 * stringify(doc); //=> "<h3>a</h3>"
 	 */
 	get name(): string {
 		return read(this).name;
+	}
+
+	set name(input: string) {
+		if (!TAG.test(input)) throw new SyntaxError(`Invalid tag name: "${input}"`);
+		let name = input.toLowerCase();
+		state.rename(read(this), tree.SVG.get(name) ?? name);
 	}
 
 	/** Child nodes, in order. A new array on every read. */

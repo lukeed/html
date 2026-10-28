@@ -183,6 +183,29 @@ describe("text and html", () => {
 		expect(style?.text).toBe("a > b {}");
 	});
 
+	test("moved text is escaped for its new parent", () => {
+		let doc = mutable.parse(
+			"<script>a<b</script><div>x &lt; y</div><title>c<d</title><p></p>",
+		);
+		let [script, div, title, p] = ["script", "div", "title", "p"].map((x) =>
+			doc.find(x),
+		);
+		let [a] = script?.children ?? [];
+		let [x] = div?.children ?? [];
+		let [c] = title?.children ?? [];
+		if (a && x && c) {
+			div?.append(a);
+			script?.append(x);
+			p?.append(c);
+		}
+		expect(mutable.stringify(doc)).toBe(
+			"<script>x < y</script><div>a&lt;b</div><title></title><p>c&lt;d</p>",
+		);
+		expect(a && mutable.stringify(a)).toBe("a&lt;b");
+		a?.remove();
+		expect(a && mutable.stringify(a)).toBe("a<b");
+	});
+
 	test("text value setter", () => {
 		let doc = mutable.parse("<p>a</p>");
 		let [node] = doc.find("p")?.children ?? [];

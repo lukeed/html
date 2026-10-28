@@ -240,10 +240,26 @@ function open(s: State): string {
 }
 
 /**
+ * How text inside an element is written: escaped, raw like `<title>`, or literal like `<script>`.
+ */
+function mode(name: string): number {
+	return !tree.RAW.has(name) ? 0 : values.LITERAL.has(name) ? 2 : 1;
+}
+
+/**
+ * Whether `s` is text that moved to a parent that writes text differently, so its source no longer fits.
+ */
+function misplaced(s: State): boolean {
+	let t = s.tree;
+	if (s.kind !== "text" || !t || !s.parent) return false;
+	return mode(s.parent.name) !== mode(t.name[t.parent[s.id]]);
+}
+
+/**
  * Serialize `s`. Unchanged subtrees are copied from the source as written.
  */
 export function serialize(s: State): string {
-	if (!s.dirty) return s.source.slice(s.start, s.end);
+	if (!s.dirty && !misplaced(s)) return s.source.slice(s.start, s.end);
 
 	switch (s.kind) {
 		case "document":

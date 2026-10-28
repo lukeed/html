@@ -310,6 +310,14 @@ describe("reads", () => {
 		expect(a?.closest("p")).toBeUndefined();
 	});
 
+	test("skips template contents, unless the template is the root", () => {
+		let doc = mutable.parse(
+			'<template><p class="x">a</p></template><p class="x">b</p>',
+		);
+		expect(doc.all(".x").map((x) => x.text)).toEqual(["b"]);
+		expect(doc.find("template")?.all(".x").map((x) => x.text)).toEqual(["a"]);
+	});
+
 	test(":empty sees edits", () => {
 		let p = doc.find("p:empty");
 		expect(p?.name).toBe("p");

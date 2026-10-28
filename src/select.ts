@@ -481,6 +481,7 @@ function candidates(t: Tree, list: Selector): number[] | undefined {
 
 /**
  * Element ids inside `root` that match `list`, in source order.
+ * Like css-select, skips the contents of `<template>` elements below `root`.
  * Stops after `limit` matches.
  */
 export function all(
@@ -494,9 +495,17 @@ export function all(
 	let ids = candidates(t, list);
 
 	if (ids) {
+		let templates = t.tags?.get("template") ?? [];
+		let skip = 0;
+		let k = 0;
 		for (let id of ids) {
 			if (id <= root) continue;
 			if (id >= stop) break;
+			for (; k < templates.length && templates[k] < id; k++) {
+				let x = templates[k];
+				if (x > root && t.stop[x] > skip) skip = t.stop[x];
+			}
+			if (id < skip) continue;
 			if (matches(t, id, list)) {
 				output.push(id);
 				if (output.length >= limit) break;
@@ -506,10 +515,12 @@ export function all(
 	}
 
 	for (let id = root + 1; id < stop; id++) {
-		if (t.kind[id] === tree.ELEMENT && matches(t, id, list)) {
+		if (t.kind[id] !== tree.ELEMENT) continue;
+		if (matches(t, id, list)) {
 			output.push(id);
 			if (output.length >= limit) break;
 		}
+		if (t.name[id] === "template") id = t.stop[id] - 1;
 	}
 	return output;
 }

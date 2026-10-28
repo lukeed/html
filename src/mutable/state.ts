@@ -304,6 +304,7 @@ export function matches(s: State, list: Selector): boolean {
 
 /**
  * Descendant elements of `root` that match `list`, in document order.
+ * Like css-select, skips the contents of `<template>` elements below `root`.
  */
 export function all(root: State, list: Selector, limit = Infinity): State[] {
 	let output: State[] = [];
@@ -315,6 +316,7 @@ export function all(root: State, list: Selector, limit = Infinity): State[] {
 			output.push(s);
 			if (output.length >= limit) break;
 		}
+		if (s.name === "template") continue;
 		for (let i = s.children.length - 1; i >= 0; i--) stack.push(s.children[i]);
 	}
 

@@ -24,6 +24,7 @@ const HTML = `<!doctype html>
 		<ul><li>1</li><li class="x">2</li><li>3</li><li>4</li><li class="x">5</li></ul>
 		<div data-Mixed="Value" data-list="a b c" lang="en-GB"><span>s</span><!-- c --></div>
 		<svg viewBox="0 0 1 1"><clipPath id="c"><rect/></clipPath></svg>
+		<template id="t"><p class="x">t</p><template><li class="x">n</li></template></template>
 	</main>
 	<footer><p>Bye</p></footer>
 </body>
@@ -81,6 +82,10 @@ const SELECTORS = [
 	"svg rect",
 	"ul > li.x + li",
 	"header a.active, main img[src$='.png']",
+	"template",
+	"template p",
+	"main .x",
+	"p, li",
 ];
 
 describe("select", () => {
@@ -110,6 +115,16 @@ describe("select", () => {
 		let lower = select.all(ours, 0, select.compile("clippath"));
 		expect(exact.map((id) => ours.name[id])).toEqual(["clipPath"]);
 		expect(lower).toEqual([]);
+	});
+
+	test("skips template contents, unless the template is the root", () => {
+		let [outer] = select.all(ours, 0, select.compile("template"));
+		let [inner] = select.all(ours, outer, select.compile("template"));
+		let names = (root: number) =>
+			select.all(ours, root, select.compile(".x")).map((id) => ours.name[id]);
+		expect(names(outer)).toEqual(["p"]);
+		expect(names(inner)).toEqual(["li"]);
+		expect(select.all(ours, outer, select.compile("li"))).toEqual([]);
 	});
 
 	test("stops at the limit", () => {

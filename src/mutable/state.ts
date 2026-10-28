@@ -362,6 +362,51 @@ function selfClosed(t: Tree, s: State): boolean {
 }
 
 /**
+ * Whether element `s`, in `parent` before `next`, needs an end tag that its
+ * source omits, because what closed it in the source no longer follows it.
+ */
+function unclosed(s: State, parent: State, next: State | undefined): boolean {
+	let t = s.tree;
+	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return false;
+	let id = s.id;
+	if (t.to[id] !== t.end[id] || tree.VOID.has(s.name)) return false;
+	if (selfClosed(t, s) || s.source.charCodeAt(s.start + 1) === 47) return false;
+
+	let after = t.stop[id];
+	let sibling = after < t.kind.length && t.parent[after] === t.parent[id];
+	if (next) {
+		let same = next.tree === t && next.id === after;
+		return !(sibling && same && next.name === t.name[after]);
+	}
+	if (ended(parent)) return false;
+	return sibling || parent.tree !== t || parent.id !== t.parent[id];
+}
+
+/**
+ * Whether `s` is written with an end tag, or is the document, so that its
+ * end closes every element still open inside it.
+ */
+function ended(s: State): boolean {
+	let t = s.tree;
+	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return true;
+	return selfClosed(t, s) || t.to[s.id] !== t.end[s.id];
+}
+
+/**
+ * The serialized children of `s`.
+ */
+function content(s: State): string {
+	let output = "";
+	let list = s.children;
+	for (let i = 0; i < list.length; i++) {
+		let child = list[i];
+		output += serialize(child);
+		if (unclosed(child, s, list[i + 1])) output += `</${child.name}>`;
+	}
+	return output;
+}
+
+/**
  * How text inside an element is written: escaped, raw like `<title>`, or literal like `<script>`.
  */
 function mode(name: string): number {
@@ -385,7 +430,7 @@ export function serialize(s: State): string {
 
 	switch (s.kind) {
 		case "document":
-			return s.children.map(serialize).join("");
+			return content(s);
 		case "text": {
 			let raw = s.parent && values.LITERAL.has(s.parent.name);
 			return raw ? value(s) : escapeText(value(s));
@@ -396,17 +441,17 @@ export function serialize(s: State): string {
 			return `<!${value(s)}>`;
 		case "element": {
 			let t = s.tree;
-			let content = s.children.map(serialize).join("");
+			let body = content(s);
 			let bare = t !== undefined && selfClosed(t, s);
 			let own = t !== undefined && s.name === t.name[s.id];
 			if (t && own && !(bare && s.children.length > 0)) {
 				let head = s.changed
 					? open(s, bare)
 					: s.source.slice(s.start, t.from[s.id]);
-				return head + content + s.source.slice(t.to[s.id], s.end);
+				return head + body + s.source.slice(t.to[s.id], s.end);
 			}
 			let tail = tree.VOID.has(s.name) ? "" : `</${s.name}>`;
-			return open(s, false) + content + tail;
+			return open(s, false) + body + tail;
 		}
 	}
 }
@@ -417,7 +462,7 @@ export function serialize(s: State): string {
 export function inner(s: State): string {
 	let t = s.tree;
 	if (!s.dirty && t) return s.source.slice(t.from[s.id], t.to[s.id]);
-	return s.children.map(serialize).join("");
+	return content(s);
 }
 
 const matcher = select.engine<undefined, State>({

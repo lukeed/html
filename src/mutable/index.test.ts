@@ -33,6 +33,16 @@ const SELECTORS = [
 	"[constructor]",
 ];
 
+/**
+ * The tree as nested names and text, to compare the structure of two documents.
+ */
+function shape(node: mutable.Node | mutable.Document): string {
+	if (node.type === "text") return JSON.stringify(node.value);
+	if (node.type !== "element" && node.type !== "document") return node.type;
+	let name = node.type === "element" ? node.name : "#document";
+	return `${name}(${node.children.map(shape).join(",")})`;
+}
+
 describe("parse()", () => {
 	test("round-trips unedited documents exactly", () => {
 		for (let source of [
@@ -440,6 +450,56 @@ describe("children", () => {
 		let doc = mutable.parse("<p>a<p>b");
 		doc.find("p")?.append("!");
 		expect(mutable.stringify(doc)).toBe("<p>a!<p>b");
+	});
+
+	test("implied-close elements get an end tag when what closed them moves", () => {
+		let span = () => mutable.parse("<span>s</span>").children;
+		let cases: [string, (doc: mutable.Document) => void, string][] = [
+			[
+				"<p>a<p>b",
+				(d) => d.find("p")?.after(...span()),
+				"<p>a</p><span>s</span><p>b",
+			],
+			[
+				"<ul><li>a<li>b</ul>",
+				(d) => d.find("li")?.after(...span()),
+				"<ul><li>a</li><span>s</span><li>b</ul>",
+			],
+			[
+				"<div><p>a</div>",
+				(d) => d.find("div")?.append(...span()),
+				"<div><p>a</p><span>s</span></div>",
+			],
+			["<div>x", (d) => d.append("y"), "<div>x</div>y"],
+			[
+				"<p>a<p>b",
+				(d) => {
+					let p = d.all("p")[1];
+					if (p) p.name = "span";
+				},
+				"<p>a</p><span>b</span>",
+			],
+			[
+				"<p>a<p>b",
+				(d) => {
+					let p = d.find("p");
+					if (p) d.append(p.clone(), "c");
+				},
+				"<p>a<p>b</p><p>a</p>c",
+			],
+			["</p><p>a", (d) => d.prepend("x"), "x</p><p>a"],
+			[
+				"<ul><li>a<li>b</ul>",
+				(d) => d.find("li")?.append(...mutable.parse("<p>x").children),
+				"<ul><li>a<p>x</p><li>b</ul>",
+			],
+		];
+		for (let [source, edit, expected] of cases) {
+			let doc = mutable.parse(source);
+			edit(doc);
+			expect(mutable.stringify(doc)).toBe(expected);
+			expect(shape(mutable.parse(expected))).toBe(shape(doc));
+		}
 	});
 
 	test("self-closing tags stay valid after edits", () => {

@@ -91,20 +91,13 @@ export function pairs(t: Tree, id: number): string[] {
 	return output;
 }
 
-/** Where one attribute is written in the source. */
-export type Span = {
-	/** The name, as written. */
-	name: string;
-	/** The whole attribute, as written. */
-	raw: string;
-};
-
 /**
- * The attributes of element `id` as written, by lowercase name.
+ * The attributes of element `id` as written, as `[key, name, raw, ...]`: the
+ * lowercase name, the name as written, and the whole attribute as written.
  * The first of any duplicate names wins, like {@link pairs}.
  */
-export function spans(t: Tree, id: number): Map<string, Span> {
-	let output = new Map<string, Span>();
+export function spans(t: Tree, id: number): string[] {
+	let output: string[] = [];
 	let source = t.source;
 	let end = t.from[id] - 1;
 
@@ -112,15 +105,18 @@ export function spans(t: Tree, id: number): Map<string, Span> {
 	for (; i !== -1; i = scan(source, i, end)) {
 		let name = source.slice(AT[0], AT[1]);
 		let key = name.toLowerCase();
-		if (output.has(key)) continue;
-		output.set(key, { name, raw: source.slice(AT[0], Math.min(i, end)) });
+		if (find(output, key, 3) !== -1) continue;
+		output.push(key, name, source.slice(AT[0], Math.min(i, end)));
 	}
 
 	return output;
 }
 
-function find(list: string[], key: string): number {
-	for (let i = 0; i < list.length; i += 2) if (list[i] === key) return i;
+/**
+ * The index of `key` in a flat list of records that are `stride` long.
+ */
+export function find(list: string[], key: string, stride = 2): number {
+	for (let i = 0; i < list.length; i += stride) if (list[i] === key) return i;
 	return -1;
 }
 

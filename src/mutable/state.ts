@@ -285,28 +285,72 @@ export function replaceChildren(s: State, items: State[]): void {
 	insert(s, 0, items);
 }
 
+/** An attribute that can be copied as written: not empty, and not ending in a space, `/`, or `=`. */
+const INTACT = /[^\s/=]$/;
+
 /**
- * Rebuild the opening tag of `s`. Unedited attributes are copied as written.
+ * Attributes from `entries[from]` on, written as new attributes.
  */
-function open(s: State, bare: boolean): string {
+function added(s: State, entries: [string, string][], from: number): string {
+	let output = "";
+	for (let i = from; i < entries.length; i++) {
+		let [key, val] = entries[i];
+		output += ` ${s.names?.[key] ?? key}="${escapeAttribute(val)}"`;
+	}
+	return output;
+}
+
+/**
+ * The opening tag of `s`, ending in `/>` when `slash` is set. When attributes
+ * were only added, the source tag is copied as written, plus the new ones.
+ * Else the tag is rebuilt, and unedited attributes are copied as written.
+ */
+function open(s: State, slash: boolean): string {
 	let t = s.tree;
-	let spans = t ? values.spans(t, s.id) : undefined;
+	let entries = Object.entries(attributes(s));
+	if (!t) return end("<" + s.name + added(s, entries, 0), slash);
+
+	let list = values.pairs(t, s.id);
+	let count = list.length / 2;
+	let kept = entries.length >= count;
+	for (let i = 0; kept && i < count; i++) {
+		kept = entries[i][0] === list[2 * i] && entries[i][1] === list[2 * i + 1];
+	}
+
+	let bare = selfClosed(t, s);
+	let last = count > 0 ? list[list.length - 1] : undefined;
+	let extra = kept ? added(s, entries, count) : "";
+	if (kept && !(bare && last?.endsWith("/")) && !(extra && last === "")) {
+		let head = t.head[s.id];
+		let cut = t.from[s.id] - (bare ? 2 : 1);
+		let name =
+			s.name === t.name[s.id] ? s.source.slice(s.start, head) : "<" + s.name;
+		return end(name + s.source.slice(head, cut).trimEnd() + extra, slash);
+	}
+
+	let spans = values.spans(t, s.id);
 	let output = "<" + s.name;
-	for (let [key, val] of Object.entries(attributes(s))) {
-		let span = spans?.get(key);
-		if (
-			span &&
-			t &&
-			val === values.attribute(t, s.id, key) &&
-			!span.raw.endsWith("/")
-		) {
-			output += " " + span.raw;
+	for (let [key, val] of entries) {
+		let at = values.find(spans, key, 3);
+		let raw = at === -1 ? "" : spans[at + 2];
+		if (INTACT.test(raw) && val === values.attribute(t, s.id, key)) {
+			output += " " + raw;
 			continue;
 		}
-		let name = s.names?.[key] ?? span?.name ?? key;
+		let name = s.names?.[key] ?? (at === -1 ? key : spans[at + 1]);
 		output += ` ${name}="${escapeAttribute(val)}"`;
 	}
-	return output + (bare ? "/>" : ">");
+	return end(output, slash);
+}
+
+/**
+ * Close a start tag with `>`, or with `/>` when `slash` is set. A space goes
+ * before `/>` unless a quote ends the tag, so an unquoted value keeps its value.
+ */
+function end(tag: string, slash: boolean): string {
+	if (!slash) return tag + ">";
+	let c = tag.charCodeAt(tag.length - 1);
+	return tag + (c === 34 || c === 39 ? "/>" : " />");
 }
 
 /**

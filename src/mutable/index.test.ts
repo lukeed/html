@@ -127,6 +127,33 @@ describe("attributes", () => {
 		);
 	});
 
+	test("added attributes extend the tag as written", () => {
+		let doc = mutable.parse(
+			"<P CLASS=a>x</P><img src=a.png  alt='x' /><a href= >y</a>",
+		);
+		doc.find("p")?.setAttr("id", "b");
+		doc.find("img")?.setAttr("loading", "lazy");
+		doc.find("a")?.setAttr("rel", "n");
+		expect(mutable.stringify(doc)).toBe(
+			`<P CLASS=a id="b">x</P><img src=a.png  alt='x' loading="lazy"/><a href="" rel="n">y</a>`,
+		);
+	});
+
+	test("a slash after an unquoted value stays out of the value", () => {
+		let doc = mutable.parse(
+			'<img alt=x src=a.png /><svg><path d="M0" fill=red /><path/></svg>',
+		);
+		doc.find("img")?.setAttr("alt", "y");
+		doc.find("path")?.setAttr("d", "M9");
+		let out = mutable.stringify(doc);
+		expect(out).toBe(
+			'<img alt="y" src=a.png /><svg><path d="M9" fill=red /><path/></svg>',
+		);
+		let again = mutable.parse(out);
+		expect(again.find("img")?.getAttr("src")).toBe("a.png");
+		expect(again.all("svg > path").length).toBe(2);
+	});
+
 	test("edited attributes keep their name as written", () => {
 		let doc = mutable.parse('<svg viewBox="0 0 1 1" refX=1></svg>');
 		let svg = doc.find("svg");

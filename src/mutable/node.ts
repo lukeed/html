@@ -317,21 +317,19 @@ export class Element extends Child {
 	}
 
 	/**
-	 * Set an attribute. The name is lowercased; the value is escaped on output.
+	 * Set an attribute. Names are case-insensitive: an existing attribute keeps
+	 * its name as written, and a new one is written as given. The value is escaped on output.
 	 * @throws {SyntaxError} if `name` is not a valid attribute name.
 	 * @example
-	 * let doc = parse("<img>");
-	 * doc.find("img")?.setAttr("alt", "A & B");
-	 * stringify(doc); //=> '<img alt="A &amp; B">'
+	 * let doc = parse("<svg>");
+	 * doc.find("svg")?.setAttr("viewBox", "0 0 1 1");
+	 * doc.find("svg")?.getAttr("viewbox"); //=> "0 0 1 1"
+	 * stringify(doc); //=> '<svg viewBox="0 0 1 1">'
 	 */
 	setAttr(name: string, value: string): void {
 		if (!NAME.test(name))
 			throw new SyntaxError(`Invalid attribute name: "${name}"`);
-		let s = read(this);
-		state.setAttributes(s, {
-			...state.attributes(s),
-			[name.toLowerCase()]: value,
-		});
+		state.setAttribute(read(this), name, value);
 	}
 
 	/**
@@ -342,11 +340,7 @@ export class Element extends Child {
 	 * stringify(doc); //=> "<input>"
 	 */
 	removeAttr(name: string): void {
-		let s = read(this);
-		let key = name.toLowerCase();
-		if (!Object.hasOwn(state.attributes(s), key)) return;
-		let { [key]: _, ...rest } = state.attributes(s);
-		state.setAttributes(s, rest);
+		state.removeAttribute(read(this), name.toLowerCase());
 	}
 
 	/**

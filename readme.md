@@ -109,7 +109,7 @@ stringify(doc); //=> '<ul><li class="first">a</li><li>b</li></ul>'
 
 Insert methods take nodes or strings. Strings are inserted as text, not HTML; use the `html` setter or `parse(html).children` for HTML. Nodes move from wherever they are, including from another document.
 
-Reads and selectors see every edit. `stringify()` copies unedited parts from the source as written, and rebuilds only edited parts, with values escaped. `start` and `end` always refer to the original `document.source`; they are `undefined` for nodes that were not parsed from it.
+Reads and selectors see every edit. `stringify()` copies unedited parts from the source as written, and rebuilds only edited parts, with values escaped. In a rebuilt tag, unedited attributes are copied as written, and edited attributes keep their name as written, like `viewBox`. A new attribute is written as given to `setAttr()`. `start` and `end` always refer to the original `document.source`; they are `undefined` for nodes that were not parsed from it.
 
 ## Not a sanitizer
 

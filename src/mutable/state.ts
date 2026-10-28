@@ -27,6 +27,8 @@ export type State = {
 	children: State[];
 	/** Frozen; replaced, never mutated. Read lazily from `tree` when unset. */
 	attrs: Readonly<Record<string, string>> | undefined;
+	/** Names of added attributes as written, by lowercase name, when they differ. */
+	names: Readonly<Record<string, string>> | undefined;
 	/** Leaf value, decoded or set; read lazily from `tree` when unset. */
 	value: string | undefined;
 	/** The opening tag or leaf value no longer matches the source. */
@@ -62,6 +64,7 @@ function create(kind: Kind, doc: State | undefined, name = ""): State {
 		name,
 		children: [],
 		attrs: undefined,
+		names: undefined,
 		value: undefined,
 		changed: true,
 		dirty: true,
@@ -90,6 +93,7 @@ export function load(t: Tree, doc: State): State[] {
 			name: t.name[id],
 			children: [],
 			attrs: undefined,
+			names: undefined,
 			value: undefined,
 			changed: false,
 			dirty: false,
@@ -214,8 +218,32 @@ export function fragment(doc: State, html: string): State[] {
 	return load(tree.build(html), doc);
 }
 
-export function setAttributes(s: State, next: Record<string, string>): void {
-	s.attrs = Object.freeze(next);
+/**
+ * Set attribute `name`, ignoring case. A new attribute keeps `name` as written.
+ */
+export function setAttribute(s: State, name: string, value: string): void {
+	let key = name.toLowerCase();
+	let attrs = attributes(s);
+	if (key !== name && !Object.hasOwn(attrs, key)) {
+		s.names = Object.freeze({ ...s.names, [key]: name });
+	}
+	s.attrs = Object.freeze({ ...attrs, [key]: value });
+	s.changed = true;
+	touch(s);
+}
+
+/**
+ * Remove attribute `key`, where `key` is lowercase.
+ */
+export function removeAttribute(s: State, key: string): void {
+	let attrs = attributes(s);
+	if (!Object.hasOwn(attrs, key)) return;
+	let { [key]: _, ...rest } = attrs;
+	s.attrs = Object.freeze(rest);
+	if (s.names && Object.hasOwn(s.names, key)) {
+		let { [key]: _, ...names } = s.names;
+		s.names = Object.freeze(names);
+	}
 	s.changed = true;
 	touch(s);
 }
@@ -231,10 +259,26 @@ export function replaceChildren(s: State, items: State[]): void {
 	insert(s, 0, items);
 }
 
+/**
+ * Rebuild the opening tag of `s`. Unedited attributes are copied as written.
+ */
 function open(s: State, bare: boolean): string {
+	let t = s.tree;
+	let spans = t ? values.spans(t, s.id) : undefined;
 	let output = "<" + s.name;
 	for (let [key, val] of Object.entries(attributes(s))) {
-		output += val === "" ? " " + key : ` ${key}="${escapeAttribute(val)}"`;
+		let span = spans?.get(key);
+		if (
+			span &&
+			t &&
+			val === values.attribute(t, s.id, key) &&
+			!span.raw.endsWith("/")
+		) {
+			output += " " + span.raw;
+			continue;
+		}
+		let name = s.names?.[key] ?? span?.name ?? key;
+		output += ` ${name}="${escapeAttribute(val)}"`;
 	}
 	return output + (bare ? "/>" : ">");
 }

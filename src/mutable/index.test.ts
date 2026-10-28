@@ -116,6 +116,41 @@ describe("attributes", () => {
 		expect(mutable.stringify(doc)).toBe('<input type="checkbox" disabled>');
 	});
 
+	test("rebuilt tags keep unedited attributes as written", () => {
+		let doc = mutable.parse(
+			`<svg viewBox="0 0 24 24"><linearGradient gradientUnits='userSpaceOnUse' title=&copy; hidden></linearGradient></svg>`,
+		);
+		doc.find("svg")?.setAttr("class", "icon");
+		doc.find("linearGradient")?.setAttr("id", "g");
+		expect(mutable.stringify(doc)).toBe(
+			`<svg viewBox="0 0 24 24" class="icon"><linearGradient gradientUnits='userSpaceOnUse' title=&copy; hidden id="g"></linearGradient></svg>`,
+		);
+	});
+
+	test("edited attributes keep their name as written", () => {
+		let doc = mutable.parse('<svg viewBox="0 0 1 1" refX=1></svg>');
+		let svg = doc.find("svg");
+		svg?.setAttr("VIEWBOX", "0 0 2 2");
+		svg?.setAttr("preserveAspectRatio", "none");
+		svg?.setAttr("focusable", "");
+		svg?.removeAttr("refx");
+		svg?.setAttr("refx", "2");
+		expect(svg?.attributes).toEqual({
+			viewbox: "0 0 2 2",
+			preserveaspectratio: "none",
+			focusable: "",
+			refx: "2",
+		});
+		expect(mutable.stringify(doc)).toBe(
+			'<svg viewBox="0 0 2 2" preserveAspectRatio="none" focusable="" refX="2"></svg>',
+		);
+		svg?.removeAttr("preserveaspectratio");
+		svg?.setAttr("preserveaspectratio", "none");
+		expect(mutable.stringify(doc)).toBe(
+			'<svg viewBox="0 0 2 2" focusable="" refX="2" preserveaspectratio="none"></svg>',
+		);
+	});
+
 	test("attributes are frozen and replaced on edit", () => {
 		let a = mutable.parse("<a id=x>").find("a");
 		let before = a?.attributes;

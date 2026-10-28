@@ -26,6 +26,47 @@ export const LITERAL = new Set([
 	"plaintext",
 ]);
 
+/** Offsets of the last attribute read by {@link scan}. */
+const AT = new Int32Array(4);
+
+/**
+ * Read the next attribute of a tag from `i` up to `end` into {@link AT}, as
+ * name start, name end, value start, and value end. Returns the offset after
+ * it, or `-1` when no attribute is left.
+ */
+function scan(source: string, i: number, end: number): number {
+	while (i < end) {
+		let c = source.charCodeAt(i);
+		if (!(isBreak(c) || c === 34 || c === 39)) break;
+		i++;
+	}
+	if (i >= end) return -1;
+
+	AT[0] = i;
+	while (i < end && isName(source.charCodeAt(i))) i++;
+	AT[1] = AT[2] = AT[3] = i;
+
+	let at = i;
+	while (at < end && isSpace(source.charCodeAt(at))) at++;
+	if (source.charCodeAt(at) !== 61) return i;
+
+	i = at + 1;
+	while (i < end && isSpace(source.charCodeAt(i))) i++;
+	let quote = source.charCodeAt(i);
+	if (quote === 34 || quote === 39) {
+		let close = source.indexOf(quote === 34 ? '"' : "'", i + 1);
+		if (close === -1 || close > end) close = end;
+		AT[2] = i + 1;
+		AT[3] = close;
+		return close + 1;
+	}
+
+	AT[2] = i;
+	while (i < end && !isSpace(source.charCodeAt(i))) i++;
+	AT[3] = i;
+	return i;
+}
+
 /**
  * Parse the attributes of element `id` into `[name, value, ...]`. Names are
  * lowercased; the first of any duplicate names wins. Values are entity-decoded.
@@ -37,44 +78,44 @@ export function pairs(t: Tree, id: number): string[] {
 	let output: string[] = [];
 	let source = t.source;
 	let end = t.from[id] - 1;
-	let i = t.head[id];
 
-	while (i < end) {
-		let c = source.charCodeAt(i);
-		if (isBreak(c) || c === 34 || c === 39) {
-			i++;
-			continue;
-		}
-
-		let from = i;
-		while (i < end && isName(source.charCodeAt(i))) i++;
-		let key = source.slice(from, i).toLowerCase();
-
-		let at = i;
-		while (at < end && isSpace(source.charCodeAt(at))) at++;
-
-		let value = "";
-		if (source.charCodeAt(at) === 61) {
-			i = at + 1;
-			while (i < end && isSpace(source.charCodeAt(i))) i++;
-			let quote = source.charCodeAt(i);
-			if (quote === 34 || quote === 39) {
-				let close = source.indexOf(quote === 34 ? '"' : "'", i + 1);
-				if (close === -1 || close > end) close = end;
-				value = source.slice(i + 1, close);
-				i = close + 1;
-			} else {
-				let v = i;
-				while (i < end && !isSpace(source.charCodeAt(i))) i++;
-				value = source.slice(v, i);
-			}
-		}
-
+	let i = scan(source, t.head[id], end);
+	for (; i !== -1; i = scan(source, i, end)) {
+		let key = source.slice(AT[0], AT[1]).toLowerCase();
 		if (find(output, key) !== -1) continue;
+		let value = source.slice(AT[2], AT[3]);
 		output.push(key, value.includes("&") ? decodeHTMLAttribute(value) : value);
 	}
 
 	t.pairs[id] = output;
+	return output;
+}
+
+/** Where one attribute is written in the source. */
+export type Span = {
+	/** The name, as written. */
+	name: string;
+	/** The whole attribute, as written. */
+	raw: string;
+};
+
+/**
+ * The attributes of element `id` as written, by lowercase name.
+ * The first of any duplicate names wins, like {@link pairs}.
+ */
+export function spans(t: Tree, id: number): Map<string, Span> {
+	let output = new Map<string, Span>();
+	let source = t.source;
+	let end = t.from[id] - 1;
+
+	let i = scan(source, t.head[id], end);
+	for (; i !== -1; i = scan(source, i, end)) {
+		let name = source.slice(AT[0], AT[1]);
+		let key = name.toLowerCase();
+		if (output.has(key)) continue;
+		output.set(key, { name, raw: source.slice(AT[0], Math.min(i, end)) });
+	}
+
 	return output;
 }
 

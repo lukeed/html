@@ -66,6 +66,7 @@ Return the source of a node or document, exactly as written.
 ### Document
 
 - `source`, `start`, `end`, `children`
+- `text` is the decoded text of all text nodes.
 - `find(selector)` and `all(selector)`
 - `position(offset)` returns `{ line, column }`, both 1-based.
 

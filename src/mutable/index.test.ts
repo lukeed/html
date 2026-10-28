@@ -457,6 +457,12 @@ describe("children", () => {
 });
 
 describe("Document", () => {
+	test("text decodes every text node and sees edits", () => {
+		let doc = mutable.parse("a &amp; <p>b<!--c--></p>");
+		doc.append("d");
+		expect(doc.text).toBe("a & bd");
+	});
+
 	test("position() refers to the original source", () => {
 		let doc = mutable.parse("<p>\n<img>");
 		let img = doc.find("img");

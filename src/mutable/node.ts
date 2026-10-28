@@ -219,6 +219,15 @@ export class Document extends Base {
 	}
 
 	/**
+	 * The decoded text of all text nodes.
+	 * @example
+	 * parse("a &amp; <p>b</p>").text; //=> "a & b"
+	 */
+	get text(): string {
+		return state.text(read(this));
+	}
+
+	/**
 	 * The first element that matches a CSS selector list.
 	 * @example
 	 * parse("<p>a</p>").find("p")?.text; //=> "a"

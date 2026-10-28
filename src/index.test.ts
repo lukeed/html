@@ -49,6 +49,11 @@ describe("parse()", () => {
 describe("Document", () => {
 	let doc = html.parse(SOURCE);
 
+	test("text decodes every text node", () => {
+		let doc = html.parse("a &amp; <p>b<!--c--></p><script>&amp;</script>");
+		expect(doc.text).toBe("a & b&amp;");
+	});
+
 	test("find() returns `undefined` without a match", () => {
 		expect(doc.find("video")).toBeUndefined();
 	});

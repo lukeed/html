@@ -104,6 +104,15 @@ export class Document {
 	}
 
 	/**
+	 * The decoded text of all text nodes.
+	 * @example
+	 * parse("a &amp; <p>b</p>").text; //=> "a & b"
+	 */
+	get text(): string {
+		return values.text(this.#ctx.tree, 0);
+	}
+
+	/**
 	 * Top-level nodes, in source order.
 	 * @example
 	 * parse("<!doctype html><html></html>").children.length; //=> 2

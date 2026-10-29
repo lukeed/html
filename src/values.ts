@@ -79,11 +79,40 @@ export function pairs(t: Tree, id: number): string[] {
 	let source = t.source;
 	let end = t.from[id] - 1;
 
-	let i = scan(source, t.head[id], end);
-	for (; i !== -1; i = scan(source, i, end)) {
-		let key = source.slice(AT[0], AT[1]).toLowerCase();
+	let i = t.head[id];
+
+	while (i < end) {
+		let c = source.charCodeAt(i);
+		if (isBreak(c) || c === 34 || c === 39) {
+			i++;
+			continue;
+		}
+
+		let from = i;
+		while (i < end && isName(source.charCodeAt(i))) i++;
+		let key = source.slice(from, i).toLowerCase();
+
+		let at = i;
+		while (at < end && isSpace(source.charCodeAt(at))) at++;
+
+		let value = "";
+		if (source.charCodeAt(at) === 61) {
+			i = at + 1;
+			while (i < end && isSpace(source.charCodeAt(i))) i++;
+			let quote = source.charCodeAt(i);
+			if (quote === 34 || quote === 39) {
+				let close = source.indexOf(quote === 34 ? '"' : "'", i + 1);
+				if (close === -1 || close > end) close = end;
+				value = source.slice(i + 1, close);
+				i = close + 1;
+			} else {
+				let v = i;
+				while (i < end && !isSpace(source.charCodeAt(i))) i++;
+				value = source.slice(v, i);
+			}
+		}
+
 		if (find(output, key) !== -1) continue;
-		let value = source.slice(AT[2], AT[3]);
 		output.push(key, value.includes("&") ? decodeHTMLAttribute(value) : value);
 	}
 

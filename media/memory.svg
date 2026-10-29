@@ -26,8 +26,8 @@
   </g>
   <g transform="translate(0 364)">
     <text x="158" y="20" class="me">@lukeed/html/mutable</text>
-    <rect x="440" y="0" width="125.1" height="24" rx="3" class="heap"/>
-    <text x="575.1" y="17" class="val">20.9MB</text>
+    <rect x="440" y="0" width="125.7" height="24" rx="3" class="heap"/>
+    <text x="575.7" y="17" class="val">21.0MB</text>
   </g>
   <g transform="translate(0 428)">
     <text x="158" y="20">ultrahtml</text>

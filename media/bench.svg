@@ -28,44 +28,44 @@
 
   <g transform="translate(0 300)">
     <text x="158" y="28" class="me">@lukeed/html</text>
-    <rect x="440" y="0" width="24.1" height="18" rx="3" class="bun"/>
-    <rect x="440" y="24" width="35.7" height="18" rx="3" class="node"/>
-    <text x="474.1" y="14" class="val">7.9ms</text>
-    <text x="485.7" y="38" class="val">11.7ms</text>
+    <rect x="440" y="0" width="25.3" height="18" rx="3" class="bun"/>
+    <rect x="440" y="24" width="36.8" height="18" rx="3" class="node"/>
+    <text x="475.3" y="14" class="val">7.9ms</text>
+    <text x="486.8" y="38" class="val">11.5ms</text>
   </g>
   <g transform="translate(0 376)">
     <text x="158" y="28" class="me">@lukeed/html/mutable</text>
-    <rect x="440" y="0" width="31.4" height="18" rx="3" class="bun"/>
-    <rect x="440" y="24" width="40.0" height="18" rx="3" class="node"/>
-    <text x="481.4" y="14" class="val">10.3ms</text>
-    <text x="490.0" y="38" class="val">13.1ms</text>
+    <rect x="440" y="0" width="32.9" height="18" rx="3" class="bun"/>
+    <rect x="440" y="24" width="41.6" height="18" rx="3" class="node"/>
+    <text x="482.9" y="14" class="val">10.3ms</text>
+    <text x="491.6" y="38" class="val">13.0ms</text>
   </g>
   <g transform="translate(0 452)">
     <text x="158" y="28">ultrahtml</text>
-    <rect x="440" y="0" width="76.3" height="18" rx="3" class="bun"/>
-    <rect x="440" y="24" width="127.0" height="18" rx="3" class="node"/>
-    <text x="526.3" y="14" class="val">25.0ms</text>
-    <text x="577.0" y="38" class="val">41.6ms</text>
+    <rect x="440" y="0" width="82.5" height="18" rx="3" class="bun"/>
+    <rect x="440" y="24" width="127.3" height="18" rx="3" class="node"/>
+    <text x="532.5" y="14" class="val">25.8ms</text>
+    <text x="577.3" y="38" class="val">39.8ms</text>
   </g>
   <g transform="translate(0 528)">
     <text x="158" y="28">htmlparser2</text>
-    <rect x="440" y="0" width="123.3" height="18" rx="3" class="bun"/>
-    <rect x="440" y="24" width="208.2" height="18" rx="3" class="node"/>
-    <text x="573.3" y="14" class="val">40.4ms</text>
-    <text x="658.2" y="38" class="val">68.2ms</text>
+    <rect x="440" y="0" width="130.8" height="18" rx="3" class="bun"/>
+    <rect x="440" y="24" width="211.4" height="18" rx="3" class="node"/>
+    <text x="580.8" y="14" class="val">40.9ms</text>
+    <text x="661.4" y="38" class="val">66.1ms</text>
   </g>
   <g transform="translate(0 604)">
     <text x="158" y="28">node-html-parser</text>
-    <rect x="440" y="0" width="134.3" height="18" rx="3" class="bun"/>
-    <rect x="440" y="24" width="154.8" height="18" rx="3" class="node"/>
-    <text x="584.3" y="14" class="val">44.0ms</text>
-    <text x="604.8" y="38" class="val">50.7ms</text>
+    <rect x="440" y="0" width="140.7" height="18" rx="3" class="bun"/>
+    <rect x="440" y="24" width="161.8" height="18" rx="3" class="node"/>
+    <text x="590.7" y="14" class="val">44.0ms</text>
+    <text x="611.8" y="38" class="val">50.6ms</text>
   </g>
   <g transform="translate(0 680)">
     <text x="158" y="28">parse5</text>
-    <rect x="440" y="0" width="263.7" height="18" rx="3" class="bun"/>
+    <rect x="440" y="0" width="277.2" height="18" rx="3" class="bun"/>
     <rect x="440" y="24" width="652.0" height="18" rx="3" class="node"/>
-    <text x="713.7" y="14" class="val">86.4ms</text>
-    <text x="1102.0" y="38" class="val">213.6ms</text>
+    <text x="727.2" y="14" class="val">86.7ms</text>
+    <text x="1102.0" y="38" class="val">203.9ms</text>
   </g>
 </svg>

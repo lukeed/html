@@ -371,7 +371,7 @@ export function foreign(t: Tree, id: number): boolean {
  * `foreign` is set, like the inside of `<svg>`.
  * Tree construction follows htmlparser2, not the WHATWG spec.
  */
-export function build(source: string, foreign = false): Tree {
+export function build(source: string, foreign?: boolean): Tree {
 	let n = source.length;
 	let size = 1;
 	let capacity = Math.max(64, n >> 4);
@@ -388,7 +388,9 @@ export function build(source: string, foreign = false): Tree {
 	end[0] = to[0] = n;
 
 	let stack = [0];
-	let contexts: boolean[] = foreign ? [true] : [];
+	let base = foreign === true;
+	let alien = base;
+	let contexts: boolean[] = [];
 	let owners: number[] = [];
 	let text = 0;
 	let i = 0;
@@ -438,6 +440,7 @@ export function build(source: string, foreign = false): Tree {
 		if (owners.length > 0 && owners[owners.length - 1] === id) {
 			owners.pop();
 			contexts.pop();
+			alien = contexts.length > 0 ? contexts[contexts.length - 1] : base;
 		}
 	};
 
@@ -454,7 +457,7 @@ export function build(source: string, foreign = false): Tree {
 				i = text = stop;
 				continue;
 			}
-			if (contexts.at(-1) && source.startsWith("[CDATA[", lt + 2)) {
+			if (alien && source.startsWith("[CDATA[", lt + 2)) {
 				let e = source.indexOf("]]>", lt + 9);
 				let stop = e === -1 ? n : e + 3;
 				add(TEXT, "", lt, stop, lt + 9, e === -1 ? n : e, lt);
@@ -507,7 +510,7 @@ export function build(source: string, foreign = false): Tree {
 			)
 				j++;
 			let name = intern(KNOWN, source, lt + 2, j);
-			if (contexts.at(-1)) name = SVG.get(name) ?? name;
+			if (alien) name = SVG.get(name) ?? name;
 
 			if ((FLAGS.get(name) ?? 0) & IS_VOID) {
 				if (name === "br") add(ELEMENT, "br", lt, e + 1, e + 1, e + 1, e);
@@ -549,7 +552,7 @@ export function build(source: string, foreign = false): Tree {
 		i = text = k;
 
 		let name = intern(KNOWN, source, lt + 1, j);
-		if (contexts.at(-1)) name = SVG.get(name) ?? name;
+		if (alien) name = SVG.get(name) ?? name;
 		else if (name === "image") name = "img";
 
 		if (name === "form" && stack.some((x) => names[x] === "form")) continue;
@@ -565,16 +568,16 @@ export function build(source: string, foreign = false): Tree {
 		let id = add(ELEMENT, name, lt, k, k, k, j);
 		if (flags & IS_VOID) continue;
 
-		let outer = contexts.at(-1) ?? false;
+		let outer = alien;
 		let context =
 			flags & IS_FOREIGN ? true : flags & IS_INTEGRATION ? false : undefined;
-		let foreign = context ?? outer;
-		if (foreign && slash) continue;
+		if ((context ?? outer) && slash) continue;
 
 		stack.push(id);
 		if (context !== undefined) {
 			contexts.push(context);
 			owners.push(id);
+			alien = context;
 		}
 		if (outer || !(flags & IS_RAW)) continue;
 
@@ -601,6 +604,6 @@ export function build(source: string, foreign = false): Tree {
 		pairs: new Array(size),
 		attrs: new Array(size),
 		tags: undefined,
-		foreign,
+		foreign: base,
 	};
 }

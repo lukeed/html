@@ -8,12 +8,9 @@ function isSpace(c: number): boolean {
 	return c === 32 || c === 9 || c === 10 || c === 13 || c === 12;
 }
 
-function isBreak(c: number): boolean {
-	return isSpace(c) || c === 47 || c === 61 || c === 62;
-}
-
+/** Whether `c` can continue an attribute name. A name can start with `=`, and holds quotes. */
 function isName(c: number): boolean {
-	return !(isBreak(c) || c === 34 || c === 39);
+	return !(isSpace(c) || c === 47 || c === 61 || c === 62);
 }
 
 export const LITERAL = new Set([
@@ -37,12 +34,12 @@ const AT = new Int32Array(4);
 function scan(source: string, i: number, end: number): number {
 	while (i < end) {
 		let c = source.charCodeAt(i);
-		if (!(isBreak(c) || c === 34 || c === 39)) break;
+		if (!(c === 47 || isSpace(c))) break;
 		i++;
 	}
 	if (i >= end) return -1;
 
-	AT[0] = i;
+	AT[0] = i++;
 	while (i < end && isName(source.charCodeAt(i))) i++;
 	AT[1] = AT[2] = AT[3] = i;
 
@@ -83,12 +80,12 @@ export function pairs(t: Tree, id: number): string[] {
 
 	while (i < end) {
 		let c = source.charCodeAt(i);
-		if (isBreak(c) || c === 34 || c === 39) {
+		if (c === 47 || isSpace(c)) {
 			i++;
 			continue;
 		}
 
-		let from = i;
+		let from = i++;
 		while (i < end && isName(source.charCodeAt(i))) i++;
 		let key = source.slice(from, i).toLowerCase();
 

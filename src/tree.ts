@@ -242,21 +242,72 @@ function isSpace(c: number): boolean {
 	return c === 32 || c === 9 || c === 10 || c === 13 || c === 12;
 }
 
+/** Whether the last tag read by {@link tagEnd} ended with `/>`, outside a value. */
+let slash = false;
+
 /**
- * The offset after the `>` that ends a tag, skipping quoted values, or `-1`
- * when the tag is not closed.
+ * The offset after the `>` that ends a tag, or `-1` when the tag is not
+ * closed. Follows the attribute states of htmlparser2: a quote starts a value
+ * only after `=`, and an unquoted value ends only at a space or `>`.
  */
 function tagEnd(source: string, from: number): number {
 	let n = source.length;
-	for (let i = from; i < n; i++) {
+	let i = from;
+	slash = false;
+
+	while (i < n) {
 		let c = source.charCodeAt(i);
+		if (c === 32) {
+			i++;
+			continue;
+		}
 		if (c === 62) return i + 1;
+		if (c === 47) {
+			i++;
+			while (i < n && isSpace(source.charCodeAt(i))) i++;
+			if (source.charCodeAt(i) !== 62) continue;
+			slash = true;
+			return i + 1;
+		}
+		if (isSpace(c)) {
+			i++;
+			continue;
+		}
+
+		for (i++; i < n; i++) {
+			c = source.charCodeAt(i);
+			if (c > 62) continue;
+			if (c === 61 || c === 47 || c === 62 || isSpace(c)) break;
+		}
+		if (c !== 61) {
+			while (i < n && isSpace(source.charCodeAt(i))) i++;
+			if (source.charCodeAt(i) !== 61) continue;
+		}
+
+		c = source.charCodeAt(++i);
+		while (i < n && isSpace(c)) c = source.charCodeAt(++i);
 		if (c === 34 || c === 39) {
 			i = source.indexOf(c === 34 ? '"' : "'", i + 1);
 			if (i === -1) return -1;
+			i++;
+			continue;
+		}
+		for (; i < n; i++) {
+			c = source.charCodeAt(i);
+			if (c > 62) continue;
+			if (c === 62 || isSpace(c)) break;
 		}
 	}
 	return -1;
+}
+
+/**
+ * Whether the start tag whose attributes begin at `head` ends with `/>`, outside a value.
+ * @example
+ * selfClosing("<path d=M0/>", 5); //=> false
+ */
+export function selfClosing(source: string, head: number): boolean {
+	return tagEnd(source, head) !== -1 && slash;
 }
 
 function grow<T extends Uint8Array | Int32Array>(column: T, size: number): T {
@@ -476,7 +527,7 @@ export function build(source: string, foreign = false): Tree {
 		let context =
 			flags & IS_FOREIGN ? true : flags & IS_INTEGRATION ? false : undefined;
 		let foreign = context ?? outer;
-		if (foreign && source.charCodeAt(k - 2) === 47) continue;
+		if (foreign && slash) continue;
 
 		stack.push(id);
 		if (context !== undefined) {

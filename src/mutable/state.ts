@@ -299,8 +299,8 @@ export function replaceChildren(s: State, items: State[]): void {
 	insert(s, 0, items);
 }
 
-/** An attribute that can be copied as written: not empty, and not ending in a space, `/`, or `=`. */
-const INTACT = /[^\s/=]$/;
+/** An attribute that can be copied as written: not empty, and not ending in a space or `=`. */
+const INTACT = /[^\s=]$/;
 
 /**
  * Attributes from `entries[from]` on, written as new attributes.
@@ -334,12 +334,13 @@ function open(s: State, slash: boolean): string {
 	let bare = selfClosed(t, s);
 	let last = count > 0 ? list[list.length - 1] : undefined;
 	let extra = kept ? added(s, entries, count) : "";
-	if (kept && !(bare && last?.endsWith("/")) && !(extra && last === "")) {
+	if (kept && !(extra && last === "")) {
 		let head = t.head[s.id];
-		let cut = t.from[s.id] - (bare ? 2 : 1);
+		let rest = s.source.slice(head, t.from[s.id] - 1).trimEnd();
+		if (bare) rest = rest.slice(0, -1).trimEnd();
 		let name =
 			s.name === t.name[s.id] ? s.source.slice(s.start, head) : "<" + s.name;
-		return end(name + s.source.slice(head, cut).trimEnd() + extra, slash);
+		return end(name + rest + extra, slash);
 	}
 
 	let spans = values.spans(t, s.id);
@@ -371,8 +372,8 @@ function end(tag: string, slash: boolean): string {
  * Whether the source tag of `s` ends with `/>` and has nothing parsed inside it.
  */
 function selfClosed(t: Tree, s: State): boolean {
-	let at = t.from[s.id];
-	return at === t.end[s.id] && s.source.charCodeAt(at - 2) === 47;
+	if (t.from[s.id] !== t.end[s.id]) return false;
+	return tree.selfClosing(s.source, t.head[s.id]);
 }
 
 /**

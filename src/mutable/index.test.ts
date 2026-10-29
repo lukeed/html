@@ -589,7 +589,16 @@ describe("children", () => {
 		doc = mutable.parse("<br/><a href=/x/>");
 		doc.find("br")?.setAttr("class", "y");
 		doc.find("a")?.append("z");
-		expect(mutable.stringify(doc)).toBe('<br class="y"/><a href="/x/">z</a>');
+		expect(mutable.stringify(doc)).toBe('<br class="y"/><a href=/x/>z');
+		expect(shape(mutable.parse(mutable.stringify(doc)))).toBe(shape(doc));
+
+		doc = mutable.parse("<svg><path d=M0/><path d=M1 / ></svg>");
+		for (let path of doc.all("path")) path.setAttr("fill", "red");
+		let out = mutable.stringify(doc);
+		expect(out).toBe(
+			'<svg><path d=M0/ fill="red"><path d=M1 fill="red"/></svg>',
+		);
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
 	});
 
 	test("new elements serialize with closing tags", () => {

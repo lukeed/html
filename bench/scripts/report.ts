@@ -14,6 +14,7 @@ const SUITES: Suite[] = [parse.parse, query.query, edit.roundtrip, edit.edit];
 const START = "<!-- bench:start -->";
 const END = "<!-- bench:end -->";
 const GAP = 4;
+const NONE = "–";
 
 async function load(name: string): Promise<Result> {
 	let file = join(import.meta.dirname, "..", "results", name);
@@ -21,11 +22,11 @@ async function load(name: string): Promise<Result> {
 }
 
 function ms(value: number | undefined): string {
-	return value === undefined ? "–" : `${value.toFixed(1)}ms`;
+	return value === undefined ? NONE : `${value.toFixed(1)}ms`;
 }
 
 function mb(value: number | undefined): string {
-	return value === undefined ? "–" : `${(value / 1e6).toFixed(1)}MB`;
+	return value === undefined ? NONE : `${(value / 1e6).toFixed(1)}MB`;
 }
 
 function size(bytes: number): string {
@@ -36,6 +37,7 @@ function size(bytes: number): string {
 
 /**
  * Render rows as aligned columns under a `Benchmark :: title` header.
+ * Values are right-aligned in their column; a missing value is not.
  */
 function block(title: string, columns: string[], rows: string[][]): string {
 	let names = rows.map((x) => x[0]);
@@ -44,6 +46,11 @@ function block(title: string, columns: string[], rows: string[][]): string {
 		(column, i) =>
 			Math.max(column.length, ...rows.map((x) => x[i + 1].length)) + GAP,
 	);
+	let values = columns.map((_, i) =>
+		Math.max(...rows.map((x) => (x[i + 1] === NONE ? 0 : x[i + 1].length))),
+	);
+	let align = (x: string, i: number) =>
+		x === NONE ? x : x.padStart(values[i]);
 
 	let line = (head: string, cells: string[]) =>
 		(
@@ -52,7 +59,7 @@ function block(title: string, columns: string[], rows: string[][]): string {
 
 	return [
 		line(title, columns),
-		...rows.map((x) => line("  " + x[0], x.slice(1))),
+		...rows.map((x) => line("  " + x[0], x.slice(1).map(align))),
 	].join("\n");
 }
 

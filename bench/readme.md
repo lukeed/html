@@ -46,12 +46,12 @@ Parse each page into a full tree and keep it. @lukeed/html reads attributes and 
 
 ```txt
 Benchmark :: parse (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99        Memory
-  @lukeed/html                  7.9ms      8.0ms     8.9ms     11.5ms      11.7ms     12.1ms     4.9MB
-  @lukeed/html, read all        25.0ms     25.2ms    25.8ms    34.8ms      35.4ms     36.4ms     21.1MB
-  @lukeed/html/mutable          10.3ms     10.3ms    11.2ms    13.0ms      13.1ms     13.3ms     21.0MB
-  ultrahtml                     25.8ms     26.7ms    27.7ms    39.8ms      40.0ms     40.4ms     25.8MB
-  htmlparser2                   40.9ms     41.3ms    42.0ms    66.1ms      77.2ms     81.7ms     19.9MB
-  node-html-parser              44.0ms     45.1ms    46.0ms    50.6ms      50.9ms     51.1ms     40.1MB
+  @lukeed/html                   7.9ms      8.0ms     8.9ms     11.5ms      11.7ms     12.1ms      4.9MB
+  @lukeed/html, read all        25.0ms     25.2ms    25.8ms     34.8ms      35.4ms     36.4ms     21.1MB
+  @lukeed/html/mutable          10.3ms     10.3ms    11.2ms     13.0ms      13.1ms     13.3ms     21.0MB
+  ultrahtml                     25.8ms     26.7ms    27.7ms     39.8ms      40.0ms     40.4ms     25.8MB
+  htmlparser2                   40.9ms     41.3ms    42.0ms     66.1ms      77.2ms     81.7ms     19.9MB
+  node-html-parser              44.0ms     45.1ms    46.0ms     50.6ms      50.9ms     51.1ms     40.1MB
   parse5                        86.7ms     86.7ms    88.5ms    203.9ms     209.8ms    210.6ms    108.9MB
   Bun HTMLRewriter → tree       45.7ms     46.1ms    47.0ms    –           –          –          –
 ```
@@ -68,7 +68,7 @@ Benchmark :: parse + query (4.79 MB)      Bun avg    p75       p99       Node av
   ultrahtml + selector                    30.4ms     30.8ms    31.4ms    60.7ms      62.0ms    65.0ms
   htmlparser2 + css-select                52.8ms     53.3ms    54.8ms    96.9ms      98.4ms    98.9ms
   node-html-parser                        53.3ms     53.7ms    54.1ms    77.9ms      78.5ms    78.9ms
-  Bun HTMLRewriter (native), streaming    9.8ms      10.1ms    10.6ms    –           –         –
+  Bun HTMLRewriter (native), streaming     9.8ms     10.1ms    10.6ms    –           –         –
 ```
 
 ### parse + stringify
@@ -77,10 +77,10 @@ Parse each page and serialize it again with no edits. Only libraries that can se
 
 ```txt
 Benchmark :: parse + stringify (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99
-  @lukeed/html/mutable                      10.5ms     10.8ms    14.9ms    13.5ms      13.6ms     13.7ms
-  ultrahtml                                 41.3ms     41.8ms    42.1ms    66.2ms      69.5ms     71.8ms
+  @lukeed/html/mutable                      10.5ms     10.8ms    14.9ms     13.5ms      13.6ms     13.7ms
+  ultrahtml                                 41.3ms     41.8ms    42.1ms     66.2ms      69.5ms     71.8ms
   htmlparser2 + dom-serializer              56.1ms     56.2ms    57.0ms    111.1ms     113.6ms    114.9ms
-  node-html-parser                          48.4ms     48.8ms    49.3ms    68.3ms      72.6ms     73.1ms
+  node-html-parser                          48.4ms     48.8ms    49.3ms     68.3ms      72.6ms     73.1ms
 ```
 
 ### parse + edit + stringify
@@ -89,10 +89,10 @@ Parse each page, set `rel="noopener"` on every `a[href]`, set `alt=""` on every 
 
 ```txt
 Benchmark :: parse + edit + stringify (4.79 MB)    Bun avg    p75       p99       Node avg    p75        p99
-  @lukeed/html/mutable                             20.7ms     20.9ms    21.3ms    28.3ms      28.5ms     28.9ms
-  lol-html (wasm), streaming                       47.3ms     47.9ms    48.5ms    59.3ms      59.5ms     59.9ms
-  ultrahtml + selector                             44.8ms     45.3ms    45.6ms    76.5ms      80.1ms     80.3ms
+  @lukeed/html/mutable                             20.7ms     20.9ms    21.3ms     28.3ms      28.5ms     28.9ms
+  lol-html (wasm), streaming                       47.3ms     47.9ms    48.5ms     59.3ms      59.5ms     59.9ms
+  ultrahtml + selector                             44.8ms     45.3ms    45.6ms     76.5ms      80.1ms     80.3ms
   htmlparser2 + css-select + dom-serializer        61.7ms     62.2ms    62.7ms    121.1ms     122.0ms    122.6ms
-  node-html-parser                                 63.5ms     64.3ms    65.0ms    91.6ms      92.6ms     97.2ms
-  Bun HTMLRewriter (native), streaming             9.7ms      9.9ms     10.6ms    –           –          –
+  node-html-parser                                 63.5ms     64.3ms    65.0ms     91.6ms      92.6ms     97.2ms
+  Bun HTMLRewriter (native), streaming              9.7ms      9.9ms    10.6ms    –           –          –
 ```

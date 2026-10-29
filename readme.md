@@ -156,7 +156,7 @@ Benchmark :: parse + edit + stringify (4.79 MB)    Bun       Node
   ultrahtml + selector                             44.8ms     76.5ms
   htmlparser2 + css-select + dom-serializer        61.7ms    121.1ms
   node-html-parser                                 63.5ms     91.6ms
-  Bun HTMLRewriter (native), streaming              9.7ms     –
+  Bun HTMLRewriter (native), streaming              9.7ms    –
 ```
 
 <!-- bench:end -->

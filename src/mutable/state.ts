@@ -27,8 +27,6 @@ export type State = {
 	children: State[];
 	/** Frozen; replaced, never mutated. Read lazily from `tree` when unset. */
 	attrs: Readonly<Record<string, string>> | undefined;
-	/** Names of added attributes as written, by lowercase name, when they differ. */
-	names: Readonly<Record<string, string>> | undefined;
 	/** Leaf value, decoded or set; read lazily from `tree` when unset. */
 	value: string | undefined;
 	/** The opening tag or leaf value no longer matches the source. */
@@ -47,6 +45,12 @@ const KINDS: Record<number, Kind> = {
 	[tree.DIRECTIVE]: "directive",
 };
 
+/**
+ * Names of added attributes as written, by lowercase name, when they differ.
+ * Kept beside the states, since few elements need them.
+ */
+const NAMES = new WeakMap<State, Readonly<Record<string, string>>>();
+
 export function docOf(s: State): State {
 	return s.doc ?? s;
 }
@@ -64,7 +68,6 @@ function create(kind: Kind, doc: State | undefined, name = ""): State {
 		name,
 		children: [],
 		attrs: undefined,
-		names: undefined,
 		value: undefined,
 		changed: true,
 		dirty: true,
@@ -93,7 +96,6 @@ export function load(t: Tree, doc: State): State[] {
 			name: t.name[id],
 			children: [],
 			attrs: undefined,
-			names: undefined,
 			value: undefined,
 			changed: false,
 			dirty: false,
@@ -210,6 +212,8 @@ export function insert(parent: State, index: number, items: State[]): void {
  */
 export function clone(s: State): State {
 	let copy: State = { ...s, parent: undefined, children: [], view: undefined };
+	let names = NAMES.get(s);
+	if (names) NAMES.set(copy, names);
 	for (let child of s.children) {
 		let next = clone(child);
 		next.parent = copy;
@@ -238,7 +242,7 @@ export function setAttribute(s: State, name: string, value: string): void {
 	let key = name.toLowerCase();
 	let attrs = attributes(s);
 	if (key !== name && !Object.hasOwn(attrs, key)) {
-		s.names = Object.freeze({ ...s.names, [key]: name });
+		NAMES.set(s, Object.freeze({ ...NAMES.get(s), [key]: name }));
 	}
 	s.attrs = Object.freeze({ ...attrs, [key]: value });
 	s.changed = true;
@@ -253,9 +257,10 @@ export function removeAttribute(s: State, key: string): void {
 	if (!Object.hasOwn(attrs, key)) return;
 	let { [key]: _, ...rest } = attrs;
 	s.attrs = Object.freeze(rest);
-	if (s.names && Object.hasOwn(s.names, key)) {
-		let { [key]: _, ...names } = s.names;
-		s.names = Object.freeze(names);
+	let names = NAMES.get(s);
+	if (names && Object.hasOwn(names, key)) {
+		let { [key]: _, ...rest } = names;
+		NAMES.set(s, Object.freeze(rest));
 	}
 	s.changed = true;
 	touch(s);
@@ -319,7 +324,7 @@ function added(s: State, entries: [string, string][], from: number): string {
 	let output = "";
 	for (let i = from; i < entries.length; i++) {
 		let [key, val] = entries[i];
-		output += ` ${s.names?.[key] ?? key}="${escapeAttribute(val)}"`;
+		output += ` ${NAMES.get(s)?.[key] ?? key}="${escapeAttribute(val)}"`;
 	}
 	return output;
 }
@@ -362,7 +367,7 @@ function open(s: State, slash: boolean): string {
 			output += " " + raw;
 			continue;
 		}
-		let name = s.names?.[key] ?? (at === -1 ? key : spans[at + 1]);
+		let name = NAMES.get(s)?.[key] ?? (at === -1 ? key : spans[at + 1]);
 		output += ` ${name}="${escapeAttribute(val)}"`;
 	}
 	return end(output, slash);

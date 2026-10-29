@@ -513,6 +513,17 @@ describe("children", () => {
 		expect(doc.all("path").map((x) => x.getAttr("d"))).toEqual(["M0", "M1"]);
 	});
 
+	test("clone() keeps the spelling of added attributes", () => {
+		let doc = mutable.parse("<svg></svg>");
+		let svg = doc.find("svg");
+		svg?.setAttr("viewBox", "0 0 1 1");
+		let copy = svg?.clone();
+		svg?.removeAttr("viewbox");
+		expect(copy && mutable.stringify(copy)).toBe(
+			'<svg viewBox="0 0 1 1"></svg>',
+		);
+	});
+
 	test("clone() works on every child node", () => {
 		let doc = mutable.parse("<!doctype html><!--c-->t");
 		let copies = doc.children.map((x) => x.clone());

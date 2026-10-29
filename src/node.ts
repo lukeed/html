@@ -311,7 +311,7 @@ export class Text {
 	}
 
 	/**
-	 * The decoded text. Text in raw text elements, like `<script>`, is not decoded.
+	 * The decoded text. Text in raw text elements, like `<script>`, and in CDATA sections is not decoded.
 	 * @example
 	 * let [node] = parse("a &amp; b").children;
 	 * if (node.type === "text") node.value; //=> "a & b"
@@ -339,7 +339,7 @@ export class Text {
 }
 
 /**
- * A comment, including bogus comments like `<?xml ?>` and `</ 3>`.
+ * A comment, including bogus comments like `<?xml ?>`, `<!x>`, and `</ 3>`.
  */
 export class Comment {
 	readonly type: "comment" = "comment";
@@ -381,7 +381,7 @@ export class Comment {
 }
 
 /**
- * A markup declaration, like `<!doctype html>`.
+ * A doctype, like `<!doctype html>`. Like browsers, other `<!...>` markup is a comment.
  */
 export class Directive {
 	readonly type: "directive" = "directive";

@@ -310,6 +310,27 @@ export function selfClosing(source: string, head: number): boolean {
 	return tagEnd(source, head) !== -1 && slash;
 }
 
+/**
+ * Where a comment that starts at `from`, after `<!--`, ends: its inner end and
+ * its outer end. Like browsers, `<!-->` is empty, `--!>` also closes it, and
+ * at the end of the source, trailing dashes are dropped.
+ */
+function comment(source: string, from: number): [to: number, stop: number] {
+	if (source.charCodeAt(from) === 62) return [from, from + 1];
+	if (source.startsWith("->", from)) return [from, from + 2];
+
+	for (let at = from; (at = source.indexOf("--", at)) !== -1; at++) {
+		let c = source.charCodeAt(at + 2);
+		if (c === 62) return [at, at + 3];
+		if (c === 33 && source.charCodeAt(at + 3) === 62) return [at, at + 4];
+	}
+
+	let n = source.length;
+	let to = n;
+	while (to > from && to > n - 2 && source.charCodeAt(to - 1) === 45) to--;
+	return [to, n];
+}
+
 function grow<T extends Uint8Array | Int32Array>(column: T, size: number): T {
 	let next = new (column.constructor as new (size: number) => T)(size);
 	next.set(column);
@@ -325,7 +346,7 @@ function closing(source: string, name: string, from: number): number {
 		let tail = at + 2 + name.length;
 		if (source.slice(at + 2, tail).toLowerCase() === name) {
 			let next = source.charCodeAt(tail);
-			if (Number.isNaN(next) || isSpace(next) || next === 62 || next === 47) {
+			if (isSpace(next) || next === 62 || next === 47) {
 				return at;
 			}
 		}
@@ -428,16 +449,24 @@ export function build(source: string, foreign = false): Tree {
 		if (c === 33) {
 			flush(lt);
 			if (source.startsWith("--", lt + 2)) {
-				let e = source.indexOf("-->", lt + 4);
-				let stop = e === -1 ? n : e + 3;
-				add(COMMENT, "", lt, stop, lt + 4, e === -1 ? n : e, lt);
+				let [to, stop] = comment(source, lt + 4);
+				add(COMMENT, "", lt, stop, lt + 4, to, lt);
 				i = text = stop;
-			} else {
-				let e = source.indexOf(">", lt + 2);
-				let stop = e === -1 ? n : e + 1;
-				add(DIRECTIVE, "", lt, stop, lt + 2, e === -1 ? n : e, lt);
-				i = text = stop;
+				continue;
 			}
+			if (contexts.at(-1) && source.startsWith("[CDATA[", lt + 2)) {
+				let e = source.indexOf("]]>", lt + 9);
+				let stop = e === -1 ? n : e + 3;
+				add(TEXT, "", lt, stop, lt + 9, e === -1 ? n : e, lt);
+				i = text = stop;
+				continue;
+			}
+			let e = source.indexOf(">", lt + 2);
+			let stop = e === -1 ? n : e + 1;
+			let doctype = source.slice(lt + 2, lt + 9).toLowerCase() === "doctype";
+			let type: Kind = doctype ? DIRECTIVE : COMMENT;
+			add(type, "", lt, stop, lt + 2, e === -1 ? n : e, lt);
+			i = text = stop;
 			continue;
 		}
 
@@ -445,16 +474,25 @@ export function build(source: string, foreign = false): Tree {
 			flush(lt);
 			let e = source.indexOf(">", lt + 2);
 			let stop = e === -1 ? n : e + 1;
-			add(COMMENT, "", lt, stop, lt + 2, e === -1 ? n : e, lt);
+			add(COMMENT, "", lt, stop, lt + 1, e === -1 ? n : e, lt);
 			i = text = stop;
 			continue;
 		}
 
 		if (c === 47) {
 			let e = source.indexOf(">", lt + 2);
-			if (e === -1) break;
+			if (e === -1) {
+				if (lt + 2 >= n) break;
+				flush(lt);
+				if (!isAlpha(source.charCodeAt(lt + 2))) {
+					add(COMMENT, "", lt, n, lt + 2, n, lt);
+				}
+				i = text = n;
+				break;
+			}
 			flush(lt);
 			i = text = e + 1;
+			if (e === lt + 2) continue;
 
 			if (!isAlpha(source.charCodeAt(lt + 2))) {
 				add(COMMENT, "", lt, e + 1, lt + 2, e, lt);
@@ -501,7 +539,11 @@ export function build(source: string, foreign = false): Tree {
 		}
 
 		let k = tagEnd(source, j);
-		if (k === -1) break;
+		if (k === -1) {
+			flush(lt);
+			i = text = n;
+			break;
+		}
 
 		flush(lt);
 		i = text = k;

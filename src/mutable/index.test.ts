@@ -409,9 +409,36 @@ describe("text and html", () => {
 		}
 		if (comment.type === "comment") {
 			comment.value = " b ";
-			expect(() => (comment.value = "-->")).toThrow(SyntaxError);
+			for (let bad of ["-->", "a--!>b", ">a", "->a"]) {
+				expect(() => (comment.value = bad)).toThrow(SyntaxError);
+			}
+			comment.value = "a-";
 		}
-		expect(mutable.stringify(doc)).toBe("<!DOCTYPE html><!-- b -->");
+		if (directive.type === "directive") {
+			expect(() => (directive.value = "x")).toThrow(SyntaxError);
+		}
+		let out = mutable.stringify(doc);
+		expect(out).toBe("<!DOCTYPE html><!--a--->");
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
+	});
+
+	test("CDATA in foreign content keeps its source form", () => {
+		let doc = mutable.parse(
+			"<svg><style><![CDATA[a{b:c}&amp;]]></style></svg><div></div>",
+		);
+		let style = doc.find("style");
+		expect(style?.text).toBe("a{b:c}&amp;");
+		style?.setAttr("id", "s");
+		expect(mutable.stringify(doc)).toBe(
+			'<svg><style id="s"><![CDATA[a{b:c}&amp;]]></style></svg><div></div>',
+		);
+		let [cdata] = style?.children ?? [];
+		if (cdata) doc.find("div")?.append(cdata);
+		let out = mutable.stringify(doc);
+		expect(out).toBe(
+			'<svg><style id="s"></style></svg><div>a{b:c}&amp;amp;</div>',
+		);
+		expect(mutable.parse(out).find("div")?.text).toBe("a{b:c}&amp;");
 	});
 });
 

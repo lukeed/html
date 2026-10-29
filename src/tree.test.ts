@@ -70,6 +70,30 @@ const CASES: Record<string, string> = {
 	math: "<math><mi>x</mi><mo>+</mo></math>",
 	"image alias": "<image src=x>",
 	whitespace: "\n  <div>\n\t<span> x </span>\n  </div>\n",
+	"bogus comments": "<!x><!><!-x><![CDATA[x]]><?x?></ x>",
+	doctypes: "<!doctype html><!DOCTYPE html><!DocType x>",
+	"empty end tag": "<p>a</>b</p>",
+	"cdata in svg": "<svg><style><![CDATA[a&amp;<b>]]></style></svg>",
+	"eof in start tag": '<p>a<a href="x',
+	"eof in unquoted value": "<p>a<a b=c",
+	"eof in attribute name": "<p>a<a b",
+	"eof in end tag": "<p>a</p",
+	"eof after end tag open": "<p>a</",
+	"eof after lone <": "<p>a<",
+	"eof in bogus comment": "<p>a</ x",
+	"eof in declaration": "<p>a<!x",
+	"eof in raw text end tag": "<script>a</script",
+	"eof in rcdata end tag": "<title>a</title",
+};
+
+/** Inputs where htmlparser2 keeps part of an unfinished tag, and browsers drop it. */
+const BROWSER: Record<string, string> = {
+	"<p>a<a/": "p(a)",
+	"<p>a</p x": "p(a)",
+	"<p>a</p ": "p(a)",
+	"<script>a</script x": "script(a)",
+	"<script>a</script/": "script(a)",
+	"<textarea>a</textarea ": "textarea(a)",
 };
 
 type Line = [depth: number, kind: string, detail: string];
@@ -138,6 +162,40 @@ describe("build()", () => {
 		});
 	}
 
+	for (let [html, expected] of Object.entries(BROWSER)) {
+		test(`drops unfinished tags like browsers :: ${html}`, () => {
+			let t = tree.build(html);
+			let shape = (id: number): string => {
+				if (t.kind[id] === tree.TEXT) return values.value(t, id);
+				let inner: string[] = [];
+				for (let x = id + 1; x < t.stop[id]; x = t.stop[x])
+					inner.push(shape(x));
+				return `${t.name[id]}(${inner.join(",")})`;
+			};
+			let top: string[] = [];
+			for (let x = 1; x < t.kind.length; x = t.stop[x]) top.push(shape(x));
+			expect(top.join(",")).toBe(expected);
+		});
+	}
+
+	test("comment, directive, and CDATA values follow browsers", () => {
+		let t = tree.build(
+			"<!x><?x?><!DOCTYPE html><![CDATA[c]]><svg><![CDATA[a&amp;<b>]]></svg>",
+		);
+		let list = [];
+		for (let id = 1; id < t.kind.length; id++) {
+			if (t.kind[id] !== tree.ELEMENT)
+				list.push([t.kind[id], values.value(t, id)]);
+		}
+		expect(list).toEqual([
+			[tree.COMMENT, "x"],
+			[tree.COMMENT, "?x?"],
+			[tree.DIRECTIVE, "DOCTYPE html"],
+			[tree.COMMENT, "[CDATA[c]]"],
+			[tree.TEXT, "a&amp;<b>"],
+		]);
+	});
+
 	test("element ranges point at their source", () => {
 		for (let html of Object.values(CASES)) {
 			let t = tree.build(html);
@@ -150,7 +208,8 @@ describe("build()", () => {
 					expect(t.to[id] <= t.end[id]).toBe(true);
 				}
 				if (t.kind[id] === tree.TEXT) {
-					expect(outer).toBe(html.slice(t.from[id], t.to[id]));
+					let inner = html.slice(t.from[id], t.to[id]);
+					if (outer !== inner) expect(outer).toBe(`<![CDATA[${inner}]]>`);
 				}
 			}
 		}

@@ -529,7 +529,8 @@ export class Comment extends Child {
 
 	/**
 	 * The comment body.
-	 * @throws {SyntaxError} when set to a value containing `-->`.
+	 * @throws {SyntaxError} when set to a value that would end the comment
+	 * early, like one containing `-->` or `--!>`, or starting with `>` or `->`.
 	 * @example
 	 * let [node] = parse("<!-- a -->").children;
 	 * if (node.type === "comment") node.value = " b ";
@@ -539,8 +540,9 @@ export class Comment extends Child {
 	}
 
 	set value(input: string) {
-		if (input.includes("-->"))
-			throw new SyntaxError('A comment cannot contain "-->"');
+		if (!state.leaf(`<!--${input}-->`, tree.COMMENT, input)) {
+			throw new SyntaxError(`Invalid comment: "${input}"`);
+		}
 		state.setValue(read(this), input);
 	}
 
@@ -556,14 +558,15 @@ export class Comment extends Child {
 }
 
 /**
- * A mutable markup declaration, like `<!doctype html>`.
+ * A mutable doctype, like `<!doctype html>`.
  */
 export class Directive extends Child {
 	readonly type: "directive" = "directive";
 
 	/**
-	 * The declaration body.
-	 * @throws {SyntaxError} when set to a value containing `>`.
+	 * The declaration body. Like browsers, only a doctype is a declaration.
+	 * @throws {SyntaxError} when set to a value that does not start with
+	 * `doctype`, or that contains `>`.
 	 * @example
 	 * let [node] = parse("<!doctype html>").children;
 	 * if (node.type === "directive") node.value = "DOCTYPE html";
@@ -573,8 +576,9 @@ export class Directive extends Child {
 	}
 
 	set value(input: string) {
-		if (input.includes(">"))
-			throw new SyntaxError('A directive cannot contain ">"');
+		if (!state.leaf(`<!${input}>`, tree.DIRECTIVE, input)) {
+			throw new SyntaxError(`Invalid directive: "${input}"`);
+		}
 		state.setValue(read(this), input);
 	}
 

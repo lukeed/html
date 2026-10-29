@@ -288,6 +288,16 @@ export function rename(s: State, input: string): void {
 	touch(s);
 }
 
+/**
+ * Whether `html` parses to one node of `kind` whose value is `input`.
+ */
+export function leaf(html: string, kind: tree.Kind, input: string): boolean {
+	let t = tree.build(html);
+	return (
+		t.kind.length === 2 && t.kind[1] === kind && values.value(t, 1) === input
+	);
+}
+
 export function setValue(s: State, input: string): void {
 	s.value = input;
 	s.changed = true;
@@ -464,6 +474,7 @@ function current(s: State | undefined): number {
 function misplaced(s: State): boolean {
 	let t = s.tree;
 	if (s.kind !== "text" || !t || !s.parent) return false;
+	if (t.start[s.id] !== t.from[s.id]) return !within(s);
 	let p = t.parent[s.id];
 	let before = tree.RAW.has(t.name[p])
 		? mode(t.name[p], tree.foreign(t, t.parent[p]))

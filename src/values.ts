@@ -176,12 +176,13 @@ export function attributes(
 }
 
 /**
- * The decoded value of a text or comment node.
- * Text inside raw text elements, like `<script>`, is not decoded.
+ * The decoded value of a text or comment node. Text inside raw text
+ * elements, like `<script>`, and CDATA sections is not decoded.
  */
 export function value(t: Tree, id: number): string {
 	let raw = t.source.slice(t.from[id], t.to[id]);
 	if (t.kind[id] !== tree.TEXT || !raw.includes("&")) return raw;
+	if (t.start[id] !== t.from[id]) return raw;
 	let p = t.parent[id];
 	let literal = LITERAL.has(t.name[p]) && !tree.foreign(t, t.parent[p]);
 	return literal ? raw : decodeHTML(raw);

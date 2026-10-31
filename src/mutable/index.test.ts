@@ -72,6 +72,37 @@ describe("parse()", () => {
 		}
 	});
 
+	test("matches the immutable variant for attribute selectors", () => {
+		let source = `<div CLASS=" a\tb " class=c data-X="1 2" lang=en-GB title='x"y' e="&lt;&gt;"><p class="a-b ab"></p><svg viewBox="0 0 1 1"><clipPath clipPathUnits=objectBoundingBox /></svg><p class=b data-x=2 data-x=3>t</p></div>`;
+		let selectors = [
+			".a",
+			".b",
+			".a.b",
+			".ab",
+			"[class~=b]",
+			"[data-x]",
+			"[data-x='1 2']",
+			"[data-x=3]",
+			"[lang|=EN i]",
+			"[title='x\"y']",
+			"[e='<>']",
+			"[viewbox]",
+			"[clippathunits^=object]",
+			"div > .b",
+			":not(.a)",
+		];
+		let a = html.parse(source);
+		for (let built of [false, true]) {
+			let b = mutable.parse(source);
+			if (built) for (let el of b.all("*")) el.attributes;
+			for (let selector of selectors) {
+				expect(b.all(selector).map((x) => x.start)).toEqual(
+					a.all(selector).map((x) => x.start),
+				);
+			}
+		}
+	});
+
 	test("reads the same values as the immutable variant", () => {
 		let a = html.parse(SOURCE);
 		let b = mutable.parse(SOURCE);
@@ -202,6 +233,110 @@ describe("attributes", () => {
 		doc.all("a")[1].setAttr("data-x", "1");
 		expect(doc.all('[data-x="1"]')).toEqual([doc.all("a")[1]]);
 		expect(doc.find("a")?.matches("[data-x]")).toBe(false);
+	});
+
+	test("reads match before and after the record is built", () => {
+		let source = `<div CLASS="A b" class="c" Data-X=1 data-x=2 e f= g h="&amp;x" i='q"' ÄB=1 äb=2 j/ __proto__=p constructor=c>`;
+		let keys = [
+			"class",
+			"CLASS",
+			"data-x",
+			"e",
+			"f",
+			"g",
+			"h",
+			"i",
+			"äb",
+			"ÄB",
+			"j",
+			"k",
+			"__proto__",
+			"constructor",
+			"toString",
+			"",
+		];
+		let lazy = mutable.parse(source).find("div");
+		let built = mutable.parse(source).find("div");
+		let record = html.parse(source).find("div")?.attributes;
+		expect(built?.attributes).toEqual(record ?? {});
+		for (let key of keys) {
+			expect(lazy?.getAttr(key)).toBe(built?.getAttr(key));
+			expect(lazy?.hasAttr(key)).toBe(built?.hasAttr(key) ?? false);
+		}
+		expect(lazy?.getAttr("data-x")).toBe("1");
+		expect(lazy?.getAttr("h")).toBe("&x");
+		// The record drops `__proto__`, so reads do too, before it is built.
+		expect(lazy?.hasAttr("__proto__")).toBe(false);
+		expect(lazy?.hasAttr("constructor")).toBe(true);
+	});
+
+	test("reads see setAttr() and removeAttr(), in either order", () => {
+		let source = `<p ID=a class="x y" hidden></p><p id=b></p>`;
+		let steps: [string, (p: mutable.Element) => unknown][] = [
+			["get", (p) => p.getAttr("id")],
+			["has", (p) => p.hasAttr("hidden")],
+			["set", (p) => p.setAttr("Id", "c")],
+			["remove", (p) => p.removeAttr("HIDDEN")],
+			["select", (p) => p.matches("#c:not([hidden])")],
+		];
+		let expected: Record<string, unknown[]> = {
+			"get,has,set,remove,select": ["a", true, undefined, undefined, true],
+			"set,get,remove,has,select": [undefined, "c", undefined, false, true],
+			"remove,has,get,select,set": [undefined, false, "a", false, undefined],
+			"select,set,select,remove,select": [
+				false,
+				undefined,
+				false,
+				undefined,
+				true,
+			],
+			"has,remove,set,get,has": [true, undefined, undefined, "c", false],
+		};
+		for (let [order, results] of Object.entries(expected)) {
+			let doc = mutable.parse(source);
+			let [p, other] = doc.all("p");
+			let actual = order
+				.split(",")
+				.map((name) => steps.find(([x]) => x === name)?.[1](p));
+			expect(actual).toEqual(results);
+			expect(other.getAttr("id")).toBe("b");
+			expect(doc.all("#b")).toEqual([other]);
+		}
+	});
+
+	test("selectors read attributes before and after edits", () => {
+		let doc = mutable.parse(
+			`<a CLASS="x\ty" data-k=1></a><a class=x data-K=2></a><a></a>`,
+		);
+		let [a, b, c] = doc.all("a");
+		expect(doc.all(".x")).toEqual([a, b]);
+		expect(doc.all("[data-k]")).toEqual([a, b]);
+		b.removeAttr("class");
+		c.setAttr("class", "y x");
+		a.setAttr("data-k", "3");
+		expect(doc.all(".x")).toEqual([a, c]);
+		expect(doc.all(".y")).toEqual([a, c]);
+		expect(doc.all('[data-k="3"], [data-k="2"]')).toEqual([a, b]);
+		expect(doc.all("[data-k=1]")).toEqual([]);
+	});
+
+	test("clones, moved nodes, and fragments read their attributes", () => {
+		let doc = mutable.parse(`<div><a href="/x" Title=t>a</a></div>`);
+		let other = mutable.parse("<main></main>");
+		let a = doc.find("a")!;
+		let copy = a.clone();
+		expect(copy.getAttr("title")).toBe("t");
+		other.find("main")?.append(copy);
+		expect(other.find("[title=t]")).toBe(copy);
+		copy.setAttr("title", "u");
+		expect(a.getAttr("title")).toBe("t");
+		expect(doc.find("[title=u]")).toBeUndefined();
+		expect(other.find("main > a[title=u][href='/x']")).toBe(copy);
+
+		let div = doc.find("div")!;
+		div.html = `<b class="k" data-n=&amp;></b>`;
+		expect(div.find("b")?.getAttr("data-n")).toBe("&");
+		expect(div.find(".k[data-n='&']")).toBe(div.find("b"));
 	});
 
 	test("only the edited tag is rebuilt", () => {

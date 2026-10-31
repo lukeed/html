@@ -141,6 +141,24 @@ export function attributes(s: State): Readonly<Record<string, string>> {
 	return s.attrs;
 }
 
+/**
+ * Whether `s` still has the attributes of its source tag, unread, so `key`
+ * can be read from the tree without building the record. A record never
+ * holds `__proto__`, so that key always goes through it.
+ */
+function unread(s: State, key: string): boolean {
+	return s.attrs === undefined && s.tree !== undefined && key !== "__proto__";
+}
+
+/**
+ * The value of attribute `key` on `s`, where `key` is lowercase.
+ */
+export function attribute(s: State, key: string): string | undefined {
+	if (unread(s, key)) return values.attribute(s.tree!, s.id, key);
+	let attrs = attributes(s);
+	return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
+}
+
 export function value(s: State): string {
 	if (s.value === undefined) s.value = s.tree ? values.value(s.tree, s.id) : "";
 	return s.value;
@@ -531,8 +549,7 @@ export function inner(s: State): string {
 const matcher = select.engine<undefined, State>({
 	name: (_, s) => s.name,
 	attr(_, s, key) {
-		let attrs = attributes(s);
-		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
+		return attribute(s, key);
 	},
 	parent(_, s) {
 		let p = s.parent;

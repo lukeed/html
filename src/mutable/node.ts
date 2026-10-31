@@ -329,9 +329,7 @@ export class Element extends Child {
 	 * parse('<img alt="x">').find("img")?.getAttr("ALT"); //=> "x"
 	 */
 	getAttr(name: string): string | undefined {
-		let attrs = state.attributes(read(this));
-		let key = name.toLowerCase();
-		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
+		return state.attribute(read(this), name.toLowerCase());
 	}
 
 	/**
@@ -340,7 +338,7 @@ export class Element extends Child {
 	 * parse("<input disabled>").find("input")?.hasAttr("disabled"); //=> true
 	 */
 	hasAttr(name: string): boolean {
-		return Object.hasOwn(state.attributes(read(this)), name.toLowerCase());
+		return state.attribute(read(this), name.toLowerCase()) !== undefined;
 	}
 
 	/**

@@ -4,6 +4,7 @@ import { parseDocument } from "htmlparser2";
 
 import * as select from "./select";
 import * as tree from "./tree";
+import * as values from "./values";
 
 const HTML = `<!doctype html>
 <html lang="en-US">
@@ -88,6 +89,42 @@ const SELECTORS = [
 	"p, li",
 ];
 
+const CLASSES = `<p id=p1 class="foo"></p><p id=p2 class="foobar"></p>
+<p id=p3 class="a-foo foo-b"></p><p id=p4 class="\tfoo\n"></p>
+<p id=p5 class="x\fFOO foo foo"></p><p id=p6 class=""></p><p id=p7 class></p>
+<p id=p8 CLASS="bar" class="foo"></p><p id=p9 class="foo&#9;bar"></p>
+<p id=p10 class="foo&nbsp;bar"></p><p id=p11 class="a b"></p><p id=p12 class=Foo></p>
+<p id=p13 class=" \r\nfoo\u2028bar\u3000 "></p><p id=p14 class="foo\u00adbar"></p>`;
+
+/** Each class selector and the `id` of every element it matches. */
+const TOKENS: Record<string, string[]> = {
+	".foo": ["p1", "p4", "p5", "p9", "p10", "p13"],
+	".foobar": ["p2"],
+	".oo": [],
+	".fo": [],
+	".a-foo": ["p3"],
+	".foo-b": ["p3"],
+	".FOO": ["p5"],
+	".Foo": ["p12"],
+	".bar": ["p8", "p9", "p10", "p13"],
+	".foo.bar": ["p9", "p10", "p13"],
+	".foo.foo": ["p1", "p4", "p5", "p9", "p10", "p13"],
+	".x.FOO.foo": ["p5"],
+	".a": ["p11"],
+	".a\\ b": [],
+	".a\\20 b": [],
+	".\\66 oo": ["p1", "p4", "p5", "p9", "p10", "p13"],
+	".foo\\ad bar": ["p14"],
+	"[class~=foo]": ["p1", "p4", "p5", "p9", "p10", "p13"],
+	"[class~=foo i]": ["p1", "p4", "p5", "p9", "p10", "p12", "p13"],
+	'[class~="a b"]': [],
+	"[class~='']": [],
+	'[class="a b"]': ["p11"],
+	"[class='']": ["p6", "p7"],
+	"[class]:not(.foo)": ["p2", "p3", "p6", "p7", "p8", "p11", "p12", "p14"],
+	"p:not([class])": [],
+};
+
 describe("select", () => {
 	let ours = tree.build(HTML);
 	let theirs = parseDocument(HTML, { withStartIndices: true });
@@ -99,6 +136,16 @@ describe("select", () => {
 				.all(ours, 0, select.compile(selector))
 				.map((id) => ours.start[id]);
 			expect(actual).toEqual(expected);
+		});
+	}
+
+	for (let [selector, expected] of Object.entries(TOKENS)) {
+		test(`matches class tokens :: ${selector}`, () => {
+			let t = tree.build(CLASSES);
+			let ids = select
+				.all(t, 0, select.compile(selector))
+				.map((id) => values.attribute(t, id, "id"));
+			expect(ids).toEqual(expected);
 		});
 	}
 

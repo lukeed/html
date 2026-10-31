@@ -1,5 +1,6 @@
 import { decodeHTML, decodeHTMLAttribute } from "entities/decode";
 
+import * as names from "./names";
 import * as tree from "./tree";
 
 import type { Tree } from "./tree";
@@ -157,6 +158,80 @@ export function attribute(
 	let list = pairs(t, id);
 	let i = find(list, key);
 	return i === -1 ? undefined : list[i + 1];
+}
+
+/**
+ * Like {@link attribute}, but reads the start tag in place when its
+ * attributes were not parsed yet, so matching many elements once allocates
+ * nothing per element. Follows {@link pairs} exactly: the first of any
+ * duplicate names wins, and only the found value is decoded.
+ */
+export function lookup(
+	t: Tree,
+	id: number,
+	key: string,
+): string | undefined {
+	let cached = t.pairs[id];
+	if (cached) {
+		let i = find(cached, key);
+		return i === -1 ? undefined : cached[i + 1];
+	}
+
+	let source = t.source;
+	let end = t.from[id] - 1;
+	let length = key.length;
+
+	let i = t.head[id];
+
+	while (i < end) {
+		let c = source.charCodeAt(i);
+		if (c === 47 || isSpace(c)) {
+			i++;
+			continue;
+		}
+
+		// Non-ASCII names may change length when lowercased, like `İ`.
+		let from = i++;
+		let ascii = c < 128;
+		while (i < end) {
+			c = source.charCodeAt(i);
+			if (!isName(c)) break;
+			if (c > 127) ascii = false;
+			i++;
+		}
+		let hit = ascii
+			? i - from === length && names.same(source, from, key)
+			: source.slice(from, i).toLowerCase() === key;
+
+		let at = i;
+		while (at < end && isSpace(source.charCodeAt(at))) at++;
+
+		let a = i;
+		let b = i;
+		if (source.charCodeAt(at) === 61) {
+			i = at + 1;
+			while (i < end && isSpace(source.charCodeAt(i))) i++;
+			let quote = source.charCodeAt(i);
+			if (quote === 34 || quote === 39) {
+				let close = source.indexOf(quote === 34 ? '"' : "'", i + 1);
+				if (close === -1 || close > end) close = end;
+				a = i + 1;
+				b = close;
+				i = close + 1;
+			} else {
+				a = i;
+				while (i < end && !isSpace(source.charCodeAt(i))) i++;
+				b = i;
+			}
+		}
+
+		if (hit) {
+			let value = source.slice(a, b);
+			return value.includes("&") ? decodeHTMLAttribute(value) : value;
+		}
+	}
+
+	return undefined;
 }
 
 /**

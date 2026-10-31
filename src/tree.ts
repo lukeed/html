@@ -331,6 +331,34 @@ function comment(source: string, from: number): [to: number, stop: number] {
 	return [to, n];
 }
 
+/** The columns of a {@link Tree} while it is built. */
+type Columns = Pick<
+	Tree,
+	"kind" | "parent" | "stop" | "start" | "end" | "from" | "to" | "head"
+>;
+
+/** The most nodes that {@link spare} keeps room for, about 116 kB. */
+const SPARE = 1 << 12;
+
+/**
+ * Columns of the last {@link build}, for the next to reuse. A build takes
+ * them while it runs, and each tree gets a copy.
+ */
+let spare: Columns | undefined;
+
+function columns(capacity: number): Columns {
+	return {
+		kind: new Uint8Array(capacity),
+		parent: new Int32Array(capacity),
+		stop: new Int32Array(capacity),
+		start: new Int32Array(capacity),
+		end: new Int32Array(capacity),
+		from: new Int32Array(capacity),
+		to: new Int32Array(capacity),
+		head: new Int32Array(capacity),
+	};
+}
+
 function grow<T extends Uint8Array | Int32Array>(column: T, size: number): T {
 	let next = new (column.constructor as new (size: number) => T)(size);
 	next.set(column);
@@ -375,15 +403,13 @@ export function build(source: string, foreign?: boolean): Tree {
 	let n = source.length;
 	let size = 1;
 	let capacity = Math.max(64, n >> 4);
-	let kind = new Uint8Array(capacity);
+	let taken = spare;
+	spare = undefined;
+	let scratch =
+		taken && taken.kind.length >= capacity ? taken : columns(capacity);
+	capacity = scratch.kind.length;
+	let { kind, parent, stop, start, end, from, to, head } = scratch;
 	let names: string[] = [""];
-	let parent = new Int32Array(capacity);
-	let stop = new Int32Array(capacity);
-	let start = new Int32Array(capacity);
-	let end = new Int32Array(capacity);
-	let from = new Int32Array(capacity);
-	let to = new Int32Array(capacity);
-	let head = new Int32Array(capacity);
 	parent[0] = -1;
 	end[0] = to[0] = n;
 
@@ -590,17 +616,32 @@ export function build(source: string, foreign?: boolean): Tree {
 	while (stack.length > 1) pop(n, n);
 	stop[0] = size;
 
+	spare =
+		capacity <= SPARE
+			? { kind, parent, stop, start, end, from, to, head }
+			: taken;
+
+	// One buffer for every column of the tree, numbers first, so each is aligned.
+	let buffer = new ArrayBuffer(size * 29);
+	let copy = (column: Int32Array, index: number): Int32Array => {
+		let output = new Int32Array(buffer, index * size * 4, size);
+		output.set(column.subarray(0, size));
+		return output;
+	};
+	let kinds = new Uint8Array(buffer, size * 28, size);
+	kinds.set(kind.subarray(0, size));
+
 	return {
 		source,
-		kind: kind.slice(0, size),
+		kind: kinds,
 		name: names,
-		parent: parent.slice(0, size),
-		stop: stop.slice(0, size),
-		start: start.slice(0, size),
-		end: end.slice(0, size),
-		from: from.slice(0, size),
-		to: to.slice(0, size),
-		head: head.slice(0, size),
+		parent: copy(parent, 0),
+		stop: copy(stop, 1),
+		start: copy(start, 2),
+		end: copy(end, 3),
+		from: copy(from, 4),
+		to: copy(to, 5),
+		head: copy(head, 6),
 		pairs: new Array(size),
 		attrs: new Array(size),
 		tags: undefined,

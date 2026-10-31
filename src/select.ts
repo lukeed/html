@@ -88,6 +88,29 @@ function nth(input: string): [a: number, b: number] {
 	return [a, Number(match[2] || 0)];
 }
 
+/** Whether code unit `c` is whitespace to `/\s/`. */
+function isSpace(c: number): boolean {
+	if (c < 128) return c === 32 || (c >= 9 && c <= 13);
+	return /\s/.test(String.fromCharCode(c));
+}
+
+/**
+ * Whether `name` is one of the whitespace-separated tokens in `list`, like
+ * `list.split(/\s+/).includes(name)` for a non-empty `name`, without
+ * splitting. No token starts inside a match, so the search skips past it.
+ */
+function token(list: string, name: string): boolean {
+	let n = name.length;
+	let at = list.indexOf(name);
+	for (; at !== -1; at = list.indexOf(name, at + n)) {
+		if (at > 0 && !isSpace(list.charCodeAt(at - 1))) continue;
+		if (at + n < list.length && !isSpace(list.charCodeAt(at + n))) continue;
+		for (let i = 0; i < n; i++) if (isSpace(name.charCodeAt(i))) return false;
+		return true;
+	}
+	return false;
+}
+
 /**
  * Compile a selector list into matchers.
  * @throws {SyntaxError} for unsupported or malformed selectors.
@@ -322,11 +345,7 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
 			case "=":
 				return actual === expected;
 			case "~=":
-				return (
-					expected !== "" &&
-					!/\s/.test(expected) &&
-					actual.split(/\s+/).includes(expected)
-				);
+				return expected !== "" && token(actual, expected);
 			case "|=":
 				return actual === expected || actual.startsWith(expected + "-");
 			case "^=":
@@ -372,8 +391,9 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
 		if (rule.id && adapter.attr(c, n, "id") !== rule.id) return false;
 
 		if (rule.classes.length > 0) {
-			let names = (adapter.attr(c, n, "class") ?? "").split(/\s+/);
-			for (let name of rule.classes) if (!names.includes(name)) return false;
+			let list = adapter.attr(c, n, "class");
+			if (list === undefined) return false;
+			for (let name of rule.classes) if (!token(list, name)) return false;
 		}
 
 		for (let x of rule.attributes) if (!attribute(c, n, x)) return false;

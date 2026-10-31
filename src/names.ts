@@ -7,7 +7,10 @@ function lower(c: number): number {
 	return c >= 65 && c <= 90 ? c + 32 : c;
 }
 
-function same(source: string, from: number, name: string): boolean {
+/**
+ * Whether `source` from `from` holds `name`, ignoring ASCII case. `name` is lowercase.
+ */
+export function same(source: string, from: number, name: string): boolean {
 	for (let i = 0; i < name.length; i++) {
 		if (lower(source.charCodeAt(from + i)) !== name.charCodeAt(i)) return false;
 	}

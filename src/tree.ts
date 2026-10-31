@@ -590,17 +590,27 @@ export function build(source: string, foreign?: boolean): Tree {
 	while (stack.length > 1) pop(n, n);
 	stop[0] = size;
 
+	// One buffer for every column of the tree, numbers first, so each is aligned.
+	let buffer = new ArrayBuffer(size * 29);
+	let copy = (column: Int32Array, index: number): Int32Array => {
+		let output = new Int32Array(buffer, index * size * 4, size);
+		output.set(column.subarray(0, size));
+		return output;
+	};
+	let kinds = new Uint8Array(buffer, size * 28, size);
+	kinds.set(kind.subarray(0, size));
+
 	return {
 		source,
-		kind: kind.slice(0, size),
+		kind: kinds,
 		name: names,
-		parent: parent.slice(0, size),
-		stop: stop.slice(0, size),
-		start: start.slice(0, size),
-		end: end.slice(0, size),
-		from: from.slice(0, size),
-		to: to.slice(0, size),
-		head: head.slice(0, size),
+		parent: copy(parent, 0),
+		stop: copy(stop, 1),
+		start: copy(start, 2),
+		end: copy(end, 3),
+		from: copy(from, 4),
+		to: copy(to, 5),
+		head: copy(head, 6),
 		pairs: new Array(size),
 		attrs: new Array(size),
 		tags: undefined,

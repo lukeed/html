@@ -215,6 +215,34 @@ describe("build()", () => {
 		}
 	});
 
+	test("builds the same tree after any other build", () => {
+		let columns = (t: tree.Tree) =>
+			JSON.stringify(
+				[t.kind, t.parent, t.stop, t.start, t.end, t.from, t.to, t.head].map(
+					(x) => Array.from(x),
+				),
+			);
+		// Up to more nodes, and more room, than the parser keeps between builds.
+		let list = [
+			"",
+			CASES["implied table"],
+			CASES["svg names"],
+			"<p>a</p>".repeat(500),
+			"<b>".repeat(5_000),
+			"x".repeat(70_000),
+		];
+		let trees = list.map((html) => tree.build(html));
+		let expected = trees.map(columns);
+		for (let i = 0; i < list.length; i++) {
+			for (let before of list) {
+				tree.build(before);
+				expect(columns(tree.build(list[i]))).toBe(expected[i]);
+			}
+		}
+		expect(trees.map(columns)).toEqual(expected);
+		expect(expected[0]).toBe("[[0],[-1],[1],[0],[0],[0],[0],[0]]");
+	});
+
 	test("subtrees are contiguous", () => {
 		for (let html of Object.values(CASES)) {
 			let t = tree.build(html);

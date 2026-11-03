@@ -356,8 +356,7 @@ function open(s: State, slash: boolean, bare: boolean): string {
 		let head = t.head[s.id];
 		let rest = s.source.slice(head, t.from[s.id] - 1).trimEnd();
 		if (bare) rest = rest.slice(0, -1).trimEnd();
-		let name =
-			s.name === t.name[s.id] ? s.source.slice(s.start, head) : "<" + s.name;
+		let name = own(t, s) ? s.source.slice(s.start, head) : "<" + s.name;
 		return end(name + rest + extra, slash, extra ? '"' : rest || name);
 	}
 
@@ -399,12 +398,20 @@ function selfClosed(t: Tree, s: State): boolean {
 }
 
 /**
+ * Whether `s` can reuse its source tags: it keeps its name and was not parsed
+ * from a stray end tag, like `</p>`.
+ */
+function own(t: Tree, s: State): boolean {
+	return s.name === t.name[s.id] && s.source.charCodeAt(s.start + 1) !== 47;
+}
+
+/**
  * Whether element `s`, in `parent` before `next`, needs an end tag that its
  * source omits, because what closed it in the source no longer follows it.
  */
 function unclosed(s: State, parent: State, next: State | undefined): boolean {
 	let t = s.tree;
-	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return false;
+	if (s.kind !== "element" || !t || !own(t, s)) return false;
 	let id = s.id;
 	if (t.to[id] !== t.end[id] || tree.VOID.has(s.name)) return false;
 
@@ -417,7 +424,7 @@ function unclosed(s: State, parent: State, next: State | undefined): boolean {
 	else if (!sibling && parent.tree === t && parent.id === t.parent[id]) {
 		return false;
 	}
-	return !selfClosed(t, s) && s.source.charCodeAt(s.start + 1) !== 47;
+	return !selfClosed(t, s);
 }
 
 /**
@@ -426,7 +433,7 @@ function unclosed(s: State, parent: State, next: State | undefined): boolean {
  */
 function ended(s: State): boolean {
 	let t = s.tree;
-	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return true;
+	if (s.kind !== "element" || !t || !own(t, s)) return true;
 	return t.to[s.id] !== t.end[s.id] || selfClosed(t, s);
 }
 
@@ -514,8 +521,7 @@ export function serialize(s: State): string {
 			let t = s.tree;
 			let body = content(s);
 			let bare = t !== undefined && selfClosed(t, s);
-			let own = t !== undefined && s.name === t.name[s.id];
-			if (t && own && !(bare && s.children.length > 0)) {
+			if (t && own(t, s) && !(bare && s.children.length > 0)) {
 				let head = s.changed
 					? open(s, bare, bare)
 					: s.source.slice(s.start, t.from[s.id]);

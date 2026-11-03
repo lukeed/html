@@ -601,6 +601,67 @@ describe("children", () => {
 		}
 	});
 
+	test("stray end tags get a start tag when edited", () => {
+		let cases: [string, (doc: mutable.Document) => void, string][] = [
+			[
+				"<div><p>\n<div>F</div>\n</p></div><div></br></div>",
+				(d) => {
+					for (let el of d.all("*")) el.setAttr("class", "x");
+				},
+				'<div class="x"><p class="x">\n<div class="x">F</div>\n<p class="x"></p></div><div class="x"><br class="x"></div>',
+			],
+			[
+				"<div></P></BR></p class=a></div>",
+				(d) => {
+					for (let el of d.all("*")) el.setAttr("c", "1");
+				},
+				'<div c="1"><p c="1"></p><br c="1"><p c="1"></p></div>',
+			],
+			[
+				"<div></p></div>",
+				(d) => d.find("div")?.setAttr("c", "1"),
+				'<div c="1"></p></div>',
+			],
+			[
+				"<div></p>a</div>",
+				(d) => d.find("p")?.after(...mutable.parse("<b>b</b>").children),
+				"<div></p><b>b</b>a</div>",
+			],
+			[
+				"<div></p class=a></div>",
+				(d) => d.find("p")?.append("x"),
+				"<div><p>x</p></div>",
+			],
+			[
+				"<div></p>a</div>",
+				(d) => {
+					let p = d.find("p");
+					if (p) {
+						p.name = "span";
+						p.name = "p";
+					}
+				},
+				"<div><p></p>a</div>",
+			],
+			["x</p>y", (d) => d.find("p")?.append("z"), "x<p>z</p>y"],
+			[
+				"<select><option>a<option>b</select><div></p></div>",
+				(d) => {
+					let option = d.find("option");
+					if (option) d.find("p")?.append(option);
+				},
+				"<select><option>b</select><div><p><option>a</p></div>",
+			],
+		];
+		for (let [source, edit, expected] of cases) {
+			let doc = mutable.parse(source);
+			edit(doc);
+			expect(mutable.stringify(doc)).toBe(expected);
+			expect(shape(mutable.parse(expected))).toBe(shape(doc));
+		}
+		expect(mutable.parse("</p class=a>").find("p")?.attributes).toEqual({});
+	});
+
 	test("self-closing tags stay valid after edits", () => {
 		let doc = mutable.parse('<svg><path d="M0"/><path d="M1"/></svg>');
 		doc.find("path")?.setAttr("fill", "red");

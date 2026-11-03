@@ -662,6 +662,22 @@ describe("children", () => {
 		expect(mutable.parse("</p class=a>").find("p")?.attributes).toEqual({});
 	});
 
+	test("foreignObject ends at its end tag after edits", () => {
+		let doc = mutable.parse(
+			"<svg><foreignObject><p>x</p></foreignObject><rect/></svg><p>after</p>",
+		);
+		for (let el of doc.all("*")) el.setAttr("class", "x");
+		let out = mutable.stringify(doc);
+		expect(out).toBe(
+			'<svg class="x"><foreignObject class="x"><p class="x">x</p></foreignObject><rect class="x"/></svg><p class="x">after</p>',
+		);
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
+
+		let svg = mutable.parse("<svg></svg>").find("svg");
+		if (svg) svg.html = "<foreignObject><p>a</p></foreignObject><rect/>";
+		expect(svg && shape(svg)).toBe('svg(foreignObject(p("a")),rect())');
+	});
+
 	test("self-closing tags stay valid after edits", () => {
 		let doc = mutable.parse('<svg><path d="M0"/><path d="M1"/></svg>');
 		doc.find("path")?.setAttr("fill", "red");

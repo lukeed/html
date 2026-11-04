@@ -155,6 +155,20 @@ function ours(html: string): Line[] {
 	return output;
 }
 
+/** The tree as nested names and text, like `p(a,b())`. */
+function outline(html: string): string {
+	let t = tree.build(html);
+	let shape = (id: number): string => {
+		if (t.kind[id] === tree.TEXT) return values.value(t, id);
+		let inner: string[] = [];
+		for (let x = id + 1; x < t.stop[id]; x = t.stop[x]) inner.push(shape(x));
+		return `${t.name[id]}(${inner.join(",")})`;
+	};
+	let top: string[] = [];
+	for (let x = 1; x < t.kind.length; x = t.stop[x]) top.push(shape(x));
+	return top.join(",");
+}
+
 describe("build()", () => {
 	for (let [name, html] of Object.entries(CASES)) {
 		test(`matches htmlparser2 :: ${name}`, () => {
@@ -164,19 +178,39 @@ describe("build()", () => {
 
 	for (let [html, expected] of Object.entries(BROWSER)) {
 		test(`drops unfinished tags like browsers :: ${html}`, () => {
-			let t = tree.build(html);
-			let shape = (id: number): string => {
-				if (t.kind[id] === tree.TEXT) return values.value(t, id);
-				let inner: string[] = [];
-				for (let x = id + 1; x < t.stop[id]; x = t.stop[x])
-					inner.push(shape(x));
-				return `${t.name[id]}(${inner.join(",")})`;
-			};
-			let top: string[] = [];
-			for (let x = 1; x < t.kind.length; x = t.stop[x]) top.push(shape(x));
-			expect(top.join(",")).toBe(expected);
+			expect(outline(html)).toBe(expected);
 		});
 	}
+
+	test("/> closes integration points in foreign content", () => {
+		expect(
+			outline(
+				'<svg viewBox="0 0 20 20"><title/><path d="M1"/><circle r="3"/></svg>',
+			),
+		).toBe("svg(title(),path(),circle())");
+		expect(outline("<SVG><DESC/><FOREIGNOBJECT/><G/>x</SVG>")).toBe(
+			"svg(desc(),foreignObject(),g(),x)",
+		);
+		expect(
+			outline(
+				"<math><mi/><mo/><mn/><ms/><mtext/><annotation-xml/><mi>x</mi></math>",
+			),
+		).toBe("math(mi(),mo(),mn(),ms(),mtext(),annotation-xml(),mi(x))");
+		expect(
+			outline(
+				"<svg><desc><mi/>x</mi><svg><g><title/><desc/><path/></g></svg></desc><title/><path/></svg>",
+			),
+		).toBe(
+			"svg(desc(mi(x),svg(g(title(),desc(),path()))),title(),path())",
+		);
+	});
+
+	test("/> does not close elements inside integration points", () => {
+		expect(
+			outline("<svg><foreignObject><title/>x</title></foreignObject></svg>"),
+		).toBe("svg(foreignObject(title(x)))");
+		expect(outline("<math><mi><mi/>x</mi></math>")).toBe("math(mi(mi(x)))");
+	});
 
 	test("comment, directive, and CDATA values follow browsers", () => {
 		let t = tree.build(

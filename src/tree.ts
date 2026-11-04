@@ -369,7 +369,9 @@ export function foreign(t: Tree, id: number): boolean {
 /**
  * Build a {@link Tree} from HTML source, or from foreign content when
  * `foreign` is set, like the inside of `<svg>`.
- * Tree construction follows htmlparser2, not the WHATWG spec.
+ * Tree construction follows htmlparser2, not the WHATWG spec. Unlike
+ * htmlparser2, `/>` in foreign content also closes {@link INTEGRATION}
+ * elements, like `<svg><title/>`.
  */
 export function build(source: string, foreign?: boolean): Tree {
 	let n = source.length;
@@ -571,7 +573,7 @@ export function build(source: string, foreign?: boolean): Tree {
 		let outer = alien;
 		let context =
 			flags & IS_FOREIGN ? true : flags & IS_INTEGRATION ? false : undefined;
-		if ((context ?? outer) && slash) continue;
+		if (slash && (outer || flags & IS_FOREIGN)) continue;
 
 		stack.push(id);
 		if (context !== undefined) {

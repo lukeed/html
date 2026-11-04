@@ -718,3 +718,31 @@ describe("reads", () => {
 		expect(doc.end).toBe(doc.source.length);
 	});
 });
+
+describe("self-closed integration points", () => {
+	test("are written as parsed inside foreign content", () => {
+		let icon =
+			'<svg viewBox="0 0 20 20"><title/><desc/><path fill="#000" d="M1"/></svg>';
+
+		let doc = mutable.parse(icon);
+		doc.find("path")!.setAttr("fill", "currentColor");
+		doc.find("title")!.setAttr("id", "t");
+		expect(mutable.stringify(doc)).toBe(
+			'<svg viewBox="0 0 20 20"><title id="t"/><desc/><path fill="currentColor" d="M1"/></svg>',
+		);
+
+		doc = mutable.parse(icon);
+		doc.find("title")!.text = "Box";
+		expect(mutable.stringify(doc)).toBe(
+			'<svg viewBox="0 0 20 20"><title>Box</title><desc/><path fill="#000" d="M1"/></svg>',
+		);
+
+		doc = mutable.parse(icon);
+		let symbol = mutable.parse("<svg><symbol></symbol></svg>").find("symbol")!;
+		for (let child of doc.find("svg")!.children) symbol.append(child.clone());
+		expect(symbol.children.map((c) => c.name)).toEqual(["title", "desc", "path"]);
+		expect(mutable.stringify(symbol)).toBe(
+			'<symbol><title/><desc/><path fill="#000" d="M1"/></symbol>',
+		);
+	});
+});

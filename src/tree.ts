@@ -513,7 +513,10 @@ export function build(source: string, foreign?: boolean): Tree {
 		}
 
 		if (c === 47) {
-			let e = source.indexOf(">", lt + 2);
+			// most end tags have `>` right after the name, so read the name first
+			let name = readName(KNOWN, source, lt + 2);
+			let j = nameStop;
+			let e = source.charCodeAt(j) === 62 ? j : source.indexOf(">", j);
 			if (e === -1) {
 				if (lt + 2 >= n) break;
 				flush(lt);
@@ -532,7 +535,6 @@ export function build(source: string, foreign?: boolean): Tree {
 				continue;
 			}
 
-			let name = readName(KNOWN, source, lt + 2);
 			let flags = FLAGS.get(name) ?? 0;
 			let cased = flags & HAS_SVG ? SVG.get(name) : undefined;
 			if (alien && cased) name = cased;

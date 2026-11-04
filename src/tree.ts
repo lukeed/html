@@ -510,7 +510,8 @@ export function build(source: string, foreign?: boolean): Tree {
 			)
 				j++;
 			let name = intern(KNOWN, source, lt + 2, j);
-			if (alien) name = SVG.get(name) ?? name;
+			let cased = SVG.get(name);
+			if (alien) name = cased ?? name;
 
 			if ((FLAGS.get(name) ?? 0) & IS_VOID) {
 				if (name === "br") add(ELEMENT, "br", lt, e + 1, e + 1, e + 1, e);
@@ -518,7 +519,19 @@ export function build(source: string, foreign?: boolean): Tree {
 			}
 
 			let pos = stack.length - 1;
-			while (pos > 0 && names[stack[pos]] !== name) pos--;
+			if (alien || cased === undefined) {
+				while (pos > 0 && names[stack[pos]] !== name) pos--;
+			} else {
+				// As in htmlparser2, an end tag in HTML content, like
+				// `</foreignObject>` inside a `foreignObject`, also closes an
+				// open element with its SVG-cased name.
+				while (
+					pos > 0 &&
+					names[stack[pos]] !== name &&
+					names[stack[pos]] !== cased
+				)
+					pos--;
+			}
 
 			if (pos > 0) {
 				while (stack.length - 1 > pos) pop(lt, lt);

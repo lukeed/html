@@ -74,6 +74,10 @@ const CASES: Record<string, string> = {
 	doctypes: "<!doctype html><!DOCTYPE html><!DocType x>",
 	"empty end tag": "<p>a</>b</p>",
 	"cdata in svg": "<svg><style><![CDATA[a&amp;<b>]]></style></svg>",
+	"svg end tags in html content":
+		"<svg><foreignObject><p>x</p></foreignObject><clipPath><foreignObject>y</CLIPPATH><g/></svg><p>z</p>",
+	"svg in foreignObject":
+		"<svg><foreignObject><svg><foreignObject>x</foreignobject><rect/></svg></foreignObject><g/></svg>",
 	"eof in start tag": '<p>a<a href="x',
 	"eof in unquoted value": "<p>a<a b=c",
 	"eof in attribute name": "<p>a<a b",
@@ -155,6 +159,20 @@ function ours(html: string): Line[] {
 	return output;
 }
 
+/** The tree as nested names and text, like `p(a,b())`. */
+function outline(html: string): string {
+	let t = tree.build(html);
+	let shape = (id: number): string => {
+		if (t.kind[id] === tree.TEXT) return values.value(t, id);
+		let inner: string[] = [];
+		for (let x = id + 1; x < t.stop[id]; x = t.stop[x]) inner.push(shape(x));
+		return `${t.name[id]}(${inner.join(",")})`;
+	};
+	let top: string[] = [];
+	for (let x = 1; x < t.kind.length; x = t.stop[x]) top.push(shape(x));
+	return top.join(",");
+}
+
 describe("build()", () => {
 	for (let [name, html] of Object.entries(CASES)) {
 		test(`matches htmlparser2 :: ${name}`, () => {
@@ -164,19 +182,30 @@ describe("build()", () => {
 
 	for (let [html, expected] of Object.entries(BROWSER)) {
 		test(`drops unfinished tags like browsers :: ${html}`, () => {
-			let t = tree.build(html);
-			let shape = (id: number): string => {
-				if (t.kind[id] === tree.TEXT) return values.value(t, id);
-				let inner: string[] = [];
-				for (let x = id + 1; x < t.stop[id]; x = t.stop[x])
-					inner.push(shape(x));
-				return `${t.name[id]}(${inner.join(",")})`;
-			};
-			let top: string[] = [];
-			for (let x = 1; x < t.kind.length; x = t.stop[x]) top.push(shape(x));
-			expect(top.join(",")).toBe(expected);
+			expect(outline(html)).toBe(expected);
 		});
 	}
+
+	test("an SVG end tag closes its element from HTML content", () => {
+		expect(
+			outline(
+				"<svg><foreignObject><p>x</p></foreignObject><rect/></svg><p>after</p>",
+			),
+		).toBe("svg(foreignObject(p(x)),rect()),p(after)");
+		expect(
+			outline(
+				"<svg><FOREIGNOBJECT>x</FOREIGNOBJECT><foreignObject>y</foreignobject><g/></svg>",
+			),
+		).toBe("svg(foreignObject(x),foreignObject(y),g())");
+		expect(
+			outline(
+				"<svg><clipPath>x</clippath><clipPath><foreignObject>y</clipPath><g/></svg>",
+			),
+		).toBe("svg(clipPath(x),clipPath(foreignObject(y)),g())");
+		expect(outline("<div><clippath>x</CLIPPATH>y</div>")).toBe(
+			"div(clippath(x),y)",
+		);
+	});
 
 	test("comment, directive, and CDATA values follow browsers", () => {
 		let t = tree.build(

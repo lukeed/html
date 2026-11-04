@@ -6,7 +6,7 @@
 - **Lazy:** attributes and text are parsed and entity-decoded only when you read them.
 - **Located:** every node has `start` and `end` source offsets; `document.position()` maps them to lines and columns.
 - **Lossless:** `stringify()` returns the source exactly as written.
-- **Familiar:** the tree matches htmlparser2, and selectors match css-select.
+- **Familiar:** the tree matches htmlparser2, except as noted under [`parse()`](#parsesource-string-document), and selectors match css-select.
 
 ## Install
 
@@ -57,7 +57,7 @@ for (let img of doc.all("img:not([alt])")) {
 
 ### parse(source: string): Document
 
-Parse HTML. It never throws. Malformed HTML is recovered the same way htmlparser2 recovers it.
+Parse HTML. It never throws. Malformed HTML is recovered the same way htmlparser2 recovers it. Unlike htmlparser2, `/>` also closes `<title>`, `<desc>` and `<foreignObject>` inside `<svg>`, and `<mi>`, `<mo>`, `<mn>`, `<ms>`, `<mtext>` and `<annotation-xml>` inside `<math>`.
 
 ### stringify(node: Node | Document): string
 

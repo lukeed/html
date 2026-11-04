@@ -41,7 +41,16 @@ export type Tree = {
 	tags: Map<string, number[]> | undefined;
 	/** The source was parsed as foreign content, like the inside of `<svg>`. */
 	foreign: boolean;
+	/**
+	 * End tags that the parser ignored, but browsers may act on, by the id of
+	 * the element they are in, in source order; `undefined` when there are
+	 * none. See {@link build}.
+	 */
+	strays: Map<number, Stray[]> | undefined;
 };
+
+/** An ignored end tag, and the id of the node before it in the source. */
+export type Stray = { name: string; follows: number };
 
 export const RAW = new Set([
 	"script",
@@ -76,6 +85,16 @@ export const VOID = new Set([
 	"track",
 	"wbr",
 ]);
+
+/**
+ * Elements that browsers keep track of until they see their own end tag,
+ * even when the end tag of an outer element has already closed them.
+ * Browsers open formatting elements again around the content that follows,
+ * and ignore new `<form>` start tags while a `form` is tracked.
+ */
+const TRACKED = new Set(
+	"a b big code em font form i nobr s small strike strong tt u".split(" "),
+);
 
 /** Elements whose children are foreign content. */
 export const FOREIGN = new Set(["math", "svg"]);
@@ -370,6 +389,10 @@ export function foreign(t: Tree, id: number): boolean {
  * Build a {@link Tree} from HTML source, or from foreign content when
  * `foreign` is set, like the inside of `<svg>`.
  * Tree construction follows htmlparser2, not the WHATWG spec.
+ *
+ * End tags of {@link TRACKED} elements that close nothing here, like the
+ * `</a>` in `<b><a>x</b></a>`, are kept in {@link Tree.strays}, since
+ * browsers may act on them.
  */
 export function build(source: string, foreign?: boolean): Tree {
 	let n = source.length;
@@ -392,6 +415,7 @@ export function build(source: string, foreign?: boolean): Tree {
 	let alien = base;
 	let contexts: boolean[] = [];
 	let owners: number[] = [];
+	let strays: Map<number, Stray[]> | undefined;
 	let text = 0;
 	let i = 0;
 
@@ -525,6 +549,12 @@ export function build(source: string, foreign?: boolean): Tree {
 				pop(e + 1, lt);
 			} else if (name === "p") {
 				add(ELEMENT, "p", lt, e + 1, e + 1, e + 1, e);
+			} else if (TRACKED.has(name)) {
+				let p = stack[stack.length - 1];
+				let stray = { name, follows: size - 1 };
+				let list = (strays ??= new Map()).get(p);
+				if (list) list.push(stray);
+				else strays.set(p, [stray]);
 			}
 			continue;
 		}
@@ -605,5 +635,6 @@ export function build(source: string, foreign?: boolean): Tree {
 		attrs: new Array(size),
 		tags: undefined,
 		foreign: base,
+		strays,
 	};
 }

@@ -395,13 +395,18 @@ function selfClosed(t: Tree, s: State): boolean {
  * Whether element `s`, in `parent` before `next`, needs an end tag that its
  * source omits, because what closed it in the source no longer follows it.
  */
-function unclosed(s: State, parent: State, next: State | undefined): boolean {
+function unclosed(
+	s: State,
+	parent: State,
+	next: State | string | undefined,
+): boolean {
 	let t = s.tree;
 	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return false;
 	let id = s.id;
 	if (t.to[id] !== t.end[id] || tree.VOID.has(s.name)) return false;
 	if (selfClosed(t, s) || s.source.charCodeAt(s.start + 1) === 47) return false;
 
+	if (typeof next === "string") return true;
 	let after = t.stop[id];
 	let sibling = after < t.kind.length && t.parent[after] === t.parent[id];
 	if (next) {
@@ -427,13 +432,44 @@ function ended(s: State): boolean {
  */
 function content(s: State): string {
 	let output = "";
-	let list = s.children;
+	let list = strays(s);
 	for (let i = 0; i < list.length; i++) {
 		let child = list[i];
+		if (typeof child === "string") {
+			output += child;
+			continue;
+		}
 		output += serialize(child);
 		if (unclosed(child, s, list[i + 1])) output += `</${child.name}>`;
 	}
 	return output;
+}
+
+/**
+ * The children of `s`, with the end tags that {@link tree.build} kept for
+ * it placed between them as strings. Each end tag goes after the last child
+ * that is still here and was before it in the source, or first if there is
+ * none. Using one list keeps the stack frame of the recursive
+ * {@link content} small.
+ */
+function strays(s: State): (State | string)[] {
+	let t = s.tree;
+	let list = s.children;
+	if (!t?.strays) return list;
+	let tags = t.strays.get(s.id);
+	if (!tags) return list;
+	let output: (State | string)[] = [];
+	let j = tags.length - 1;
+	for (let i = list.length - 1; i >= 0; i--) {
+		let x = list[i];
+		if (x.tree === t && t.parent[x.id] === s.id) {
+			for (; j >= 0 && tags[j].follows >= x.id; j--)
+				output.push(`</${tags[j].name}>`);
+		}
+		output.push(x);
+	}
+	for (; j >= 0; j--) output.push(`</${tags[j].name}>`);
+	return output.reverse();
 }
 
 /**

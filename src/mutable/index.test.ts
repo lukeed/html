@@ -649,6 +649,86 @@ describe("children", () => {
 			'<div><span class="x">a</span><br></div>',
 		);
 	});
+
+	test("ignored end tags stay in place when their parent is rebuilt", () => {
+		let link =
+			"<p><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>";
+		let em = () => mutable.parse("<em>new</em>").children;
+		let cases: [string, (doc: mutable.Document) => void, string][] = [
+			[
+				link,
+				(d) => d.find("p")?.setAttr("class", "x"),
+				'<p class="x"><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>',
+			],
+			[
+				"<p><strong>Read the <a href=x>label</strong></A> rest.</p><h2>H</h2><p>more</p>",
+				(d) => d.find("p")?.setAttr("class", "x"),
+				'<p class="x"><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>',
+			],
+			[
+				"<div><form>a</div></form><form id=f><input></form>",
+				(d) => d.find("div")?.setAttr("class", "x"),
+				'<div class="x"><form>a</div></form><form id=f><input></form>',
+			],
+			[
+				"<b><a>x</b></a><h2>H</h2><p>more</p>",
+				(d) => d.find("b")?.after(...em()),
+				"<b><a>x</b></a><em>new</em><h2>H</h2><p>more</p>",
+			],
+			[
+				"<h2><em>H</em></h2><p><strong>Read the <a href=x>label</strong></a> rest.</p><p>more</p>",
+				(d) => {
+					let h = d.find("em");
+					if (h) d.find("strong")?.after(h);
+				},
+				"<h2></h2><p><strong>Read the <a href=x>label</strong></a><em>H</em> rest.</p><p>more</p>",
+			],
+			[
+				"<b><a>x</b><p></a>y</p><p>more</p>",
+				(d) => d.find("p")?.prepend(...em()),
+				"<b><a>x</b><p></a><em>new</em>y</p><p>more</p>",
+			],
+			[
+				"<div><b><a>x</b><!--c--></a> y</div><p>more</p>",
+				(d) => d.find("div")?.children[1].remove(),
+				"<div><b><a>x</b></a> y</div><p>more</p>",
+			],
+			[
+				"<div><b><a>x</b><!--c--></a> y</div><p>more</p>",
+				(d) => d.find("div")?.children[1].replace(...em()),
+				"<div><b><a>x</b></a><em>new</em> y</div><p>more</p>",
+			],
+			[
+				"<div><b><i><i>x</b></i> y</i> z</div><p>more</p>",
+				(d) => d.find("div")?.setAttr("class", "x"),
+				'<div class="x"><b><i><i>x</b></i> y</i> z</div><p>more</p>',
+			],
+			[
+				"<div><b><a>x</b></a></a> y</div><p>more</p>",
+				(d) => d.find("div")?.setAttr("class", "x"),
+				'<div class="x"><b><a>x</b></a></a> y</div><p>more</p>',
+			],
+			[
+				"<div><b><a>x</b><p>y<div>z</div></a> w</div>",
+				(d) => d.all("div")[1].remove(),
+				"<div><b><a>x</b><p>y</p></a> w</div>",
+			],
+		];
+		for (let [source, edit, expected] of cases) {
+			let doc = mutable.parse(source);
+			edit(doc);
+			expect(mutable.stringify(doc)).toBe(expected);
+			expect(shape(mutable.parse(expected))).toBe(shape(doc));
+		}
+	});
+
+	test("ignored end tags of other names are not kept", () => {
+		let doc = mutable.parse("<div><b><span>x</b></span> y</div><p>more</p>");
+		doc.find("div")?.setAttr("class", "x");
+		let out = mutable.stringify(doc);
+		expect(out).toBe('<div class="x"><b><span>x</b> y</div><p>more</p>');
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
+	});
 });
 
 describe("Document", () => {

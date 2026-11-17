@@ -7,7 +7,10 @@ function lower(c: number): number {
 	return c >= 65 && c <= 90 ? c + 32 : c;
 }
 
-function same(source: string, from: number, name: string): boolean {
+/**
+ * Whether `source` from `from` holds `name`, ignoring ASCII case. `name` is lowercase.
+ */
+export function same(source: string, from: number, name: string): boolean {
 	for (let i = 0; i < name.length; i++) {
 		if (lower(source.charCodeAt(from + i)) !== name.charCodeAt(i)) return false;
 	}
@@ -46,6 +49,42 @@ export function intern(
 	for (let i = from; i < to; i++)
 		h = (h * 31 + lower(source.charCodeAt(i))) | 0;
 
+	return resolve(known, source, from, to, h);
+}
+
+/** End offset of the last name read by {@link read}. */
+export let end = 0;
+
+/** Scan and intern a tag name in one pass, leaving its end offset in {@link end}. */
+export function read(known: Table, source: string, from: number): string {
+	let i = from;
+	let h = 0;
+	for (; i < source.length; i++) {
+		let c = source.charCodeAt(i);
+		if (
+			c <= 62 &&
+			(c === 62 ||
+				c === 47 ||
+				c === 32 ||
+				c === 9 ||
+				c === 10 ||
+				c === 13 ||
+				c === 12)
+		)
+			break;
+		h = (h * 31 + lower(c)) | 0;
+	}
+	end = i;
+	return resolve(known, source, from, i, h);
+}
+
+function resolve(
+	known: Table,
+	source: string,
+	from: number,
+	to: number,
+	h: number,
+): string {
 	let length = to - from;
 	for (let k = h & MASK; ; k = (k + 1) & MASK) {
 		let name = known[k];

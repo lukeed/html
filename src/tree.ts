@@ -1,4 +1,4 @@
-import { intern, table } from "./names";
+import { read as readName, end as nameStop, same, table } from "./names";
 
 export const DOCUMENT = 0;
 export const ELEMENT = 1;
@@ -374,7 +374,7 @@ function closing(source: string, name: string, from: number): number {
 	let at = from;
 	while ((at = source.indexOf("</", at)) !== -1) {
 		let tail = at + 2 + name.length;
-		if (source.slice(at + 2, tail).toLowerCase() === name) {
+		if (same(source, at + 2, name)) {
 			let next = source.charCodeAt(tail);
 			if (isSpace(next) || next === 62 || next === 47) {
 				return at;
@@ -532,14 +532,7 @@ export function build(source: string, foreign?: boolean): Tree {
 				continue;
 			}
 
-			let j = lt + 2;
-			while (
-				j < e &&
-				!isSpace(source.charCodeAt(j)) &&
-				source.charCodeAt(j) !== 47
-			)
-				j++;
-			let name = intern(KNOWN, source, lt + 2, j);
+			let name = readName(KNOWN, source, lt + 2);
 			let flags = FLAGS.get(name) ?? 0;
 			let cased = flags & HAS_SVG ? SVG.get(name) : undefined;
 			if (alien && cased) name = cased;
@@ -573,12 +566,8 @@ export function build(source: string, foreign?: boolean): Tree {
 			continue;
 		}
 
-		let j = lt + 2;
-		while (j < n) {
-			let ch = source.charCodeAt(j);
-			if (isSpace(ch) || ch === 62 || ch === 47) break;
-			j++;
-		}
+		let name = readName(KNOWN, source, lt + 1);
+		let j = nameStop;
 
 		let k = tagEnd(source, j);
 		if (k === -1) {
@@ -590,7 +579,6 @@ export function build(source: string, foreign?: boolean): Tree {
 		flush(lt);
 		i = text = k;
 
-		let name = intern(KNOWN, source, lt + 1, j);
 		if (alien) name = SVG.get(name) ?? name;
 		else if (name === "image") name = "img";
 

@@ -1,4 +1,5 @@
 import * as tree from "./tree";
+import * as siblings from "./siblings";
 import * as values from "./values";
 
 import type { Tree } from "./tree";
@@ -320,8 +321,10 @@ export type Adapter<C, N> = {
 	attr(c: C, n: N, key: string): string | undefined;
 	/** The parent element, or `undefined` at the top level. */
 	parent(c: C, n: N): N | undefined;
-	/** Element siblings, including `n`, in order. */
-	siblings(c: C, n: N): N[];
+	/** The 1-based position of `n` among its element siblings, or among those of its type, from the end when `last` is set. */
+	position(c: C, n: N, last: boolean, type: boolean): number;
+	/** The previous element sibling. */
+	previous(c: C, n: N): N | undefined;
 	/** Whether `n` has no element or text children. */
 	empty(c: C, n: N): boolean;
 };
@@ -368,13 +371,7 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
 			case "is":
 				return matches(c, n, rule.list);
 			case "nth": {
-				let list = adapter.siblings(c, n);
-				if (rule.type) {
-					let name = adapter.name(c, n);
-					list = list.filter((x) => adapter.name(c, x) === name);
-				}
-				let at = list.indexOf(n);
-				let index = rule.last ? list.length - at : at + 1;
+				let index = adapter.position(c, n, rule.last, rule.type);
 				if (rule.a === 0) return index === rule.b;
 				let k = (index - rule.b) / rule.a;
 				return k >= 0 && Number.isInteger(k);
@@ -423,14 +420,12 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
 			return false;
 		}
 
-		let list = adapter.siblings(c, n);
-		let at = list.indexOf(n);
-
+		let before = adapter.previous(c, n);
 		if (combinator === "+")
-			return at > 0 && complex(c, list[at - 1], rule, index - 1);
+			return before !== undefined && complex(c, before, rule, index - 1);
 
-		for (let x = at - 1; x >= 0; x--) {
-			if (complex(c, list[x], rule, index - 1)) return true;
+		for (let x = before; x !== undefined; x = adapter.previous(c, x)) {
+			if (complex(c, x, rule, index - 1)) return true;
 		}
 		return false;
 	};
@@ -449,19 +444,13 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
  * Whether element `id` matches any selector in `list`.
  */
 export const matches: Matcher<Tree, number> = engine<Tree, number>({
+	position: siblings.indexed,
+	previous: (t, id) => siblings.immutable(t, id).previous[id] || undefined,
 	name: (t, id) => t.name[id],
 	attr: values.attribute,
 	parent(t, id) {
 		let p = t.parent[id];
 		return p > 0 ? p : undefined;
-	},
-	siblings(t, id) {
-		let p = t.parent[id];
-		let output: number[] = [];
-		for (let x = p + 1; x < t.stop[p]; x = t.stop[x]) {
-			if (t.kind[x] === tree.ELEMENT) output.push(x);
-		}
-		return output;
 	},
 	empty(t, id) {
 		for (let x = id + 1; x < t.stop[id]; x = t.stop[x]) {
@@ -475,7 +464,7 @@ export const matches: Matcher<Tree, number> = engine<Tree, number>({
  * Candidate element ids for `list`, in source order: only ids with a
  * matching tag when every selector names one, else `undefined`.
  */
-function candidates(t: Tree, list: Selector): number[] | undefined {
+function candidates(t: Tree, list: Selector): readonly number[] | undefined {
 	let names = new Set<string>();
 	for (let rule of list) {
 		let last = rule.compounds[rule.compounds.length - 1];
@@ -494,9 +483,11 @@ function candidates(t: Tree, list: Selector): number[] | undefined {
 		}
 	}
 
+	if (names.size === 1) return t.tags.get(names.values().next().value!) ?? [];
+
 	let output: number[] = [];
 	for (let name of names) output = output.concat(t.tags.get(name) ?? []);
-	return names.size > 1 ? output.sort((a, b) => a - b) : output;
+	return output.sort((a, b) => a - b);
 }
 
 /**

@@ -69,7 +69,7 @@ function scan(source: string, i: number, end: number): number {
  * lowercased; the first of any duplicate names wins. Values are entity-decoded.
  */
 export function pairs(t: Tree, id: number): string[] {
-	let cached = t.pairs[id];
+	let cached = t.pairs?.[id];
 	if (cached) return cached;
 
 	let output: string[] = [];
@@ -113,7 +113,7 @@ export function pairs(t: Tree, id: number): string[] {
 		output.push(key, value.includes("&") ? decodeHTMLAttribute(value) : value);
 	}
 
-	t.pairs[id] = output;
+	(t.pairs ??= new Array(t.kind.length))[id] = output;
 	return output;
 }
 
@@ -166,13 +166,13 @@ export function attributes(
 	t: Tree,
 	id: number,
 ): Readonly<Record<string, string>> {
-	let cached = t.attrs[id];
+	let cached = t.attrs?.[id];
 	if (cached) return cached;
 
 	let list = pairs(t, id);
 	let output: Record<string, string> = {};
 	for (let i = 0; i < list.length; i += 2) output[list[i]] = list[i + 1];
-	return (t.attrs[id] = Object.freeze(output));
+	return ((t.attrs ??= new Array(t.kind.length))[id] = Object.freeze(output));
 }
 
 /**

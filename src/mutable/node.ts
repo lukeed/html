@@ -99,7 +99,7 @@ function all(s: State, selector: string): Element[] {
 function index(s: State): [State, number] {
 	let p = s.parent;
 	if (!p) throw new TypeError("Node has no parent");
-	return [p, p.children.indexOf(s)];
+	return [p, state.children(p).indexOf(s)];
 }
 
 class Base {
@@ -215,7 +215,7 @@ export class Document extends Base {
 
 	/** Top-level nodes, in order. A new array on every read. */
 	get children(): Node[] {
-		return read(this).children.map(node);
+		return state.children(read(this)).map(node);
 	}
 
 	/**
@@ -267,7 +267,7 @@ export class Document extends Base {
 	 */
 	append(...items: Content[]): void {
 		let s = read(this);
-		state.insert(s, s.children.length, contents(s, items));
+		state.insert(s, state.children(s).length, contents(s, items));
 	}
 
 	/**
@@ -311,7 +311,7 @@ export class Element extends Child {
 
 	/** Child nodes, in order. A new array on every read. */
 	get children(): Node[] {
-		return read(this).children.map(node);
+		return state.children(read(this)).map(node);
 	}
 
 	/**
@@ -471,7 +471,7 @@ export class Element extends Child {
 	 */
 	append(...items: Content[]): void {
 		let s = read(this);
-		state.insert(s, s.children.length, contents(s, items));
+		state.insert(s, state.children(s).length, contents(s, items));
 	}
 
 	/**

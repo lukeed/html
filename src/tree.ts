@@ -221,8 +221,9 @@ const IS_RAW = 2;
 const IS_FOREIGN = 4;
 const IS_INTEGRATION = 8;
 const HAS_IMPLIES = 16;
+const HAS_SVG = 32;
 
-/** The {@link VOID}, {@link RAW}, foreign, and implied-end sets of each name, as bits. */
+/** The {@link VOID}, {@link RAW}, foreign, implied-end, and {@link SVG} sets of each name, as bits. */
 const FLAGS = new Map<string, number>();
 for (let [names, flag] of [
 	[VOID, IS_VOID],
@@ -230,6 +231,7 @@ for (let [names, flag] of [
 	[FOREIGN, IS_FOREIGN],
 	[INTEGRATION, IS_INTEGRATION],
 	[IMPLIES.keys(), HAS_IMPLIES],
+	[SVG.keys(), HAS_SVG],
 ] as const) {
 	for (let name of names) FLAGS.set(name, (FLAGS.get(name) ?? 0) | flag);
 }
@@ -512,28 +514,24 @@ export function build(source: string, foreign?: boolean): Tree {
 			)
 				j++;
 			let name = intern(KNOWN, source, lt + 2, j);
-			let cased = SVG.get(name);
-			if (alien) name = cased ?? name;
+			let flags = FLAGS.get(name) ?? 0;
+			let cased = flags & HAS_SVG ? SVG.get(name) : undefined;
+			if (alien && cased) name = cased;
 
-			if ((FLAGS.get(name) ?? 0) & IS_VOID) {
+			if (flags & IS_VOID) {
 				if (name === "br") add(ELEMENT, "br", lt, e + 1, e + 1, e + 1, e);
 				continue;
 			}
 
+			// like htmlparser2, an end tag in HTML content also closes its SVG-cased element
+			let other = alien ? undefined : cased;
 			let pos = stack.length - 1;
-			if (alien || cased === undefined) {
-				while (pos > 0 && names[stack[pos]] !== name) pos--;
-			} else {
-				// As in htmlparser2, an end tag in HTML content, like
-				// `</foreignObject>` inside a `foreignObject`, also closes an
-				// open element with its SVG-cased name.
-				while (
-					pos > 0 &&
-					names[stack[pos]] !== name &&
-					names[stack[pos]] !== cased
-				)
-					pos--;
-			}
+			while (
+				pos > 0 &&
+				names[stack[pos]] !== name &&
+				names[stack[pos]] !== other
+			)
+				pos--;
 
 			if (pos > 0) {
 				while (stack.length - 1 > pos) pop(lt, lt);

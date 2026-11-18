@@ -802,6 +802,120 @@ describe("children", () => {
 		}
 	});
 
+	test("ignored end tags are dropped when their children are replaced or moved out", () => {
+		let source = "<p><strong><a>x</strong></a> y</p><section></section>";
+		for (let key of ["html", "text"] as const) {
+			let doc = mutable.parse(source);
+			let p = doc.find("p")!;
+			p[key] = "hello";
+			expect(p.html).toBe("hello");
+			expect(mutable.stringify(doc)).toBe("<p>hello</p><section></section>");
+		}
+
+		let doc = mutable.parse(source);
+		let p = doc.find("p")!;
+		doc.find("section")!.append(...p.children);
+		expect(p.html).toBe("");
+		expect(mutable.stringify(p)).toBe("<p></p>");
+	});
+
+	test("ignored end tags follow reordered children", () => {
+		let doc = mutable.parse(
+			"<div><b><a>x</b></a><i><s>y</i></s><span>z</span></div>",
+		);
+		doc.find("div")!.append(doc.find("b")!);
+		expect(mutable.stringify(doc)).toBe(
+			"<div><i><s>y</i></s><span>z</span><b><a>x</b></a></div>",
+		);
+	});
+
+	test("ignored end tags are dropped with their opener, not attached to siblings", () => {
+		for (let [selector, opener] of [
+			["b", "<em>x"],
+			["em", "<em>x"],
+			["b", "<em/>"],
+		]) {
+			let doc = mutable.parse(
+				`<div><span>before</span><b>${opener}</b><!--c--></em> y</div>`,
+			);
+			doc.find(selector)!.remove();
+			let wrapper = selector === "b" ? "" : "<b></b>";
+			expect(mutable.stringify(doc)).toBe(
+				`<div><span>before</span>${wrapper}<!--c--> y</div>`,
+			);
+		}
+	});
+
+	test("moving a comment does not move an ignored end tag away from its opener", () => {
+		let doc = mutable.parse(
+			"<div><b><em>x</b><!--c--></em><span>y</span></div>",
+		);
+		let div = doc.find("div")!;
+		div.append(div.children[1]);
+		expect(mutable.stringify(doc)).toBe(
+			"<div><b><em>x</b></em><span>y</span><!--c--></div>",
+		);
+	});
+
+	test("putting a new or moved comment before existing text does not move its closer", () => {
+		for (let trailing of ["", "<!--c-->"]) {
+			let doc = mutable.parse(`<div><b><em>x</b> y</em> z${trailing}</div>`);
+			let comment = trailing
+				? doc.find("div")!.children.at(-1)!
+				: mutable.parse("<!--c-->").children[0];
+			doc.find("b")!.after(comment);
+			expect(mutable.stringify(doc)).toBe(
+				"<div><b><em>x</b><!--c--> y</em> z</div>",
+			);
+		}
+	});
+
+	test("nested same-name openers have separate ignored end tags", () => {
+		let doc = mutable.parse("<div><b><i><i>x</b></i> y</i> z</div>");
+		doc.all("i")[1].remove();
+		expect(mutable.stringify(doc)).toBe("<div><b><i></b> y</i> z</div>");
+	});
+
+	test("moving an in-range comment does not make following original text look reordered", () => {
+		let doc = mutable.parse("<div><b><em>x</b> y<!--c--></em> z</div>");
+		doc.find("b")!.after(doc.find("div")!.children[2]);
+		expect(mutable.stringify(doc)).toBe(
+			"<div><b><em>x</b><!--c--> y</em> z</div>",
+		);
+	});
+
+	test("an ignored end tag for an outside opener can become leading", () => {
+		let doc = mutable.parse("<b><em>x</b><p>y</em><span>z</span></p>");
+		doc.find("p")!.children[0].remove();
+		expect(mutable.stringify(doc)).toBe(
+			"<b><em>x</b><p></em><span>z</span></p>",
+		);
+	});
+
+	test("replacing every child keeps only leading closers needed by outside openers", () => {
+		for (let content of ["y</em>", "</em>y"]) {
+			let doc = mutable.parse(
+				`<b><em>x</b><p>${content}</p><span>after</span>`,
+			);
+			doc.find("p")!.html = "z";
+			expect(mutable.stringify(doc)).toBe(
+				"<b><em>x</b><p></em>z</p><span>after</span>",
+			);
+		}
+
+		let doc = mutable.parse("<p></em>y</p>");
+		doc.find("p")!.html = "z";
+		expect(mutable.stringify(doc)).toBe("<p>z</p>");
+	});
+
+	test("ignored end tags cannot become text after renaming their parent", () => {
+		let doc = mutable.parse("<div>x</em> y</div>");
+		let div = doc.find("div")!;
+		div.name = "textarea";
+		expect(div.html).toBe("x y");
+		expect(mutable.stringify(doc)).toBe("<textarea>x y</textarea>");
+	});
+
 	test("ignored end tags of other names are not kept", () => {
 		let doc = mutable.parse("<div><b><span>x</b></span> y</div><p>more</p>");
 		doc.find("div")?.setAttr("class", "x");

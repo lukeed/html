@@ -561,31 +561,109 @@ function content(s: State): string {
 	return output;
 }
 
-/**
- * The children of `s`, with the end tags that {@link tree.build} kept for
- * it placed between them as strings. Each end tag goes after the last child
- * that is still here and was before it in the source, or first if there is
- * none. Using one list keeps the stack frame of the recursive
- * {@link content} small.
- */
+/** Whether the original opener still belongs to this child. */
+function keepsOpener(child: State, t: Tree, id: number): boolean {
+	let pending = [child];
+	while (pending.length > 0) {
+		let x = pending.pop()!;
+		if (x.tree !== t) continue;
+		if (x.id === id) return x.name === t.name[id];
+		if (!x.dirty) {
+			if (x.id < id && id < t.stop[x.id]) return true;
+			continue;
+		}
+		for (let nested of x.children) pending.push(nested);
+	}
+	return false;
+}
+
+/** Whether a tracked start tag closed implicitly rather than with `/>`. */
+function implicit(t: Tree, id: number): boolean {
+	return (
+		t.to[id] === t.end[id] &&
+		(t.from[id] !== t.end[id] ||
+			!tree.foreign(t, t.parent[id]) ||
+			!tree.selfClosing(t.source, t.head[id]))
+	);
+}
+
+/** The children of `s`, with saved end tags at their original child boundaries. */
 function strays(s: State): (State | string)[] {
 	let t = s.tree;
 	let list = s.children;
-	if (!t?.strays) return list;
-	let tags = t.strays.get(s.id);
-	if (!tags) return list;
-	let output: (State | string)[] = [];
-	let j = tags.length - 1;
-	for (let i = list.length - 1; i >= 0; i--) {
-		let x = list[i];
-		if (x.tree === t && t.parent[x.id] === s.id) {
-			for (; j >= 0 && tags[j].follows >= x.id; j--)
-				output.push(`</${tags[j].name}>`);
+	let tags = t?.strays?.get(s.id);
+	if (!t || !tags || current(s)) return list;
+
+	let present = new Map<number, number>();
+	let original = list.map((child, i) => {
+		if (child.tree !== t || t.parent[child.id] !== s.id) return -1;
+		present.set(child.id, i);
+		return child.id;
+	});
+
+	let after = new Map<number, string>();
+	type Opener = { id: number; owner: number };
+	let openers = new Map<string, { pending: Opener[]; last?: Opener }>();
+	for (let { name } of tags) openers.set(name, { pending: [] });
+	let outside: Set<string> | undefined;
+	let next = s.id + 1;
+	let previous = -1;
+	let lastKept = -1;
+	for (let tag of tags) {
+		while (next <= tag.follows) {
+			previous = next;
+			if (present.has(next)) lastKept = next;
+			next = t.stop[next];
+			for (let id = previous; id < next; id++) {
+				let matches = openers.get(t.name[id]);
+				if (matches && implicit(t, id))
+					matches.pending.push({ id, owner: previous });
+			}
 		}
-		output.push(x);
+
+		let matches = openers.get(tag.name)!;
+		// Redundant closers reuse the last opener once all matches are used.
+		let opener = (matches.last = matches.pending.pop() ?? matches.last);
+		let at = previous === -1 && present.size ? -1 : present.get(previous);
+		if (opener) {
+			at = present.get(opener.owner);
+			if (at === undefined || !keepsOpener(list[at], t, opener.id)) continue;
+			// Keep intervening siblings only while they still follow the opener in source order.
+			let id = opener.owner;
+			for (let i = at + 1; i < list.length; i++) {
+				let nextId = original[i];
+				if (nextId <= id || nextId > previous) {
+					if (list[i].kind === "comment") continue;
+					break;
+				}
+				if (list[i].kind !== "comment") id = nextId;
+				at = i;
+			}
+		} else if (at === undefined) {
+			// A closer can belong to an opener outside this parent.
+			if (!outside) {
+				outside = new Set();
+				for (let id = 1; id < s.id; id++) {
+					let name = t.name[id];
+					if (openers.has(name) && t.stop[id] <= s.id && implicit(t, id))
+						outside.add(name);
+				}
+			}
+			if (!outside.has(tag.name)) continue;
+			at = present.get(lastKept) ?? -1;
+		}
+		after.set(at, (after.get(at) ?? "") + `</${tag.name}>`);
 	}
-	for (; j >= 0; j--) output.push(`</${tags[j].name}>`);
-	return output.reverse();
+
+	if (!after.size) return list;
+	let leading = after.get(-1);
+	let output: (State | string)[] = leading ? [leading] : [];
+	for (let [i, child] of list.entries()) {
+		output.push(child);
+		let close = after.get(i);
+		if (close) output.push(close);
+	}
+	return output;
 }
 
 /**

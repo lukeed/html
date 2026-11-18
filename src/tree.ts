@@ -573,7 +573,12 @@ export function build(source: string, foreign?: boolean): Tree {
 		let outer = alien;
 		let context =
 			flags & IS_FOREIGN ? true : flags & IS_INTEGRATION ? false : undefined;
-		if (slash && (outer || flags & IS_FOREIGN)) continue;
+		// Keep spaced slashes for ordinary foreign tags, but require `/>` for integration points.
+		if (
+			slash &&
+			((context ?? outer) || (outer && source.charCodeAt(k - 2) === 47))
+		)
+			continue;
 
 		stack.push(id);
 		if (context !== undefined) {

@@ -200,9 +200,14 @@ describe("build()", () => {
 			outline(
 				"<svg><desc><mi/>x</mi><svg><g><title/><desc/><path/></g></svg></desc><title/><path/></svg>",
 			),
-		).toBe(
-			"svg(desc(mi(x),svg(g(title(),desc(),path()))),title(),path())",
+		).toBe("svg(desc(mi(x),svg(g(title(),desc(),path()))),title(),path())");
+	});
+
+	test("/ > does not self-close integration points", () => {
+		expect(outline("<svg><title / >x</title><g / >y</svg>")).toBe(
+			"svg(title(x),g(),y)",
 		);
+		expect(outline("<math><mi / >x</mi></math>")).toBe("math(mi(x))");
 	});
 
 	test("/> does not close elements inside integration points", () => {

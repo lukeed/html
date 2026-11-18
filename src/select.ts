@@ -1,5 +1,5 @@
-import * as tree from "./tree";
 import * as siblings from "./siblings";
+import * as tree from "./tree";
 import * as values from "./values";
 
 import type { Tree } from "./tree";
@@ -444,8 +444,8 @@ export function engine<C, N>(adapter: Adapter<C, N>): Matcher<C, N> {
  * Whether element `id` matches any selector in `list`.
  */
 export const matches: Matcher<Tree, number> = engine<Tree, number>({
-	position: siblings.indexed,
-	previous: (t, id) => siblings.immutable(t, id).previous[id] || undefined,
+	position: siblings.position,
+	previous: (t, id) => siblings.ranks(t, id).previous[id] || undefined,
 	name: (t, id) => t.name[id],
 	attr: values.attribute,
 	parent(t, id) {

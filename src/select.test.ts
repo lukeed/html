@@ -180,7 +180,7 @@ describe("select", () => {
 	test("immutable sibling ranks retain five 16-bit columns for small trees", () => {
 		let t = tree.build(`<i></i>text<!-- c --><b></b><i></i><div><b></b></div>`);
 		let first = t.name.indexOf("i");
-		let ranks = siblings.immutable(t, first);
+		let ranks = siblings.ranks(t, first);
 		expect(Object.values(ranks).every((x) => x instanceof Uint16Array)).toBe(
 			true,
 		);
@@ -192,7 +192,7 @@ describe("select", () => {
 		expect(ranks.typeCount[first]).toBe(2);
 		let nested = t.name.lastIndexOf("b");
 		expect(ranks.index[nested]).toBe(0); // Other families remain uninitialized.
-		expect(siblings.immutable(t, nested)).toBe(ranks);
+		expect(siblings.ranks(t, nested)).toBe(ranks);
 		expect(ranks.index[nested]).toBe(1);
 		expect(ranks.typeCount[nested]).toBe(1);
 	});
@@ -234,7 +234,7 @@ describe("select", () => {
 	test("sibling ranks of trees with 65536 or more nodes use 32-bit columns", () => {
 		let t = tree.build("<ul>" + "<li></li>".repeat(70000) + "</ul>");
 		let last = t.kind.length - 1;
-		let ranks = siblings.immutable(t, last);
+		let ranks = siblings.ranks(t, last);
 		expect(ranks.index).toBeInstanceOf(Int32Array);
 		expect(ranks.index[last]).toBe(70000);
 		expect(
@@ -250,7 +250,7 @@ describe("select", () => {
 			let Column = size < 65536 ? Uint16Array : Int32Array;
 			let wide = tree.build("<i></i>".repeat(size - 1));
 			expect(wide.kind.length).toBe(size);
-			let ranks = siblings.immutable(wide, size - 1);
+			let ranks = siblings.ranks(wide, size - 1);
 			expect(Object.values(ranks).every((x) => x instanceof Column)).toBe(true);
 			expect(ranks.index[size - 1]).toBe(size - 1);
 			expect(ranks.count[size - 1]).toBe(size - 1);
@@ -264,8 +264,8 @@ describe("select", () => {
 				let t = tree.build(html);
 				expect(t.kind.length).toBe(size);
 				let nested = t.name.indexOf("b");
-				let first = siblings.immutable(t, nestedFirst ? nested : size - 1);
-				expect(siblings.immutable(t, nestedFirst ? size - 1 : nested)).toBe(
+				let first = siblings.ranks(t, nestedFirst ? nested : size - 1);
+				expect(siblings.ranks(t, nestedFirst ? size - 1 : nested)).toBe(
 					first,
 				);
 				expect(Object.values(first).every((x) => x instanceof Column)).toBe(

@@ -1,12 +1,10 @@
 import { escapeAttribute, escapeText } from "entities/escape";
 
 import * as select from "../select";
-import * as siblings from "../siblings";
 import * as tree from "../tree";
 import * as values from "../values";
 
 import type { Selector } from "../select";
-import type { Rank } from "../siblings";
 import type { Tree } from "../tree";
 
 export type Kind = "document" | "element" | "text" | "comment" | "directive";
@@ -544,95 +542,45 @@ export function inner(s: State): string {
 	return content(s);
 }
 
-type Scope = {
-	ranks: Map<State, Rank<State>> | undefined;
-	list: State[] | undefined;
-	hint: number;
+/** Where an element is among its element siblings, for one query. */
+type Rank = {
+	previous: State | undefined;
+	index: number;
+	count: number;
+	typeIndex: number;
+	typeCount: number;
 };
 
-function scope(ranks?: Map<State, Rank<State>>): Scope {
-	return { ranks, list: undefined, hint: -1 };
-}
+/** Sibling ranks for one query; built per family on first need, since edits can follow. */
+type Ranks = Map<State, Rank>;
 
-/** Siblings of `s`, including `s`, in order. */
-function family(s: State): State[] {
-	return s.parent ? s.parent.children : [s];
-}
-
-function rank(ranks: Map<State, Rank<State>>, s: State): Rank<State> {
+function rank(ranks: Ranks, s: State): Rank {
 	let found = ranks.get(s);
-	if (!found) {
-		let list = family(s).filter((x) => x.kind === "element");
-		siblings.index(ranks, undefined, list, (_, x) => x.name);
-		found = ranks.get(s)!;
+	if (found) return found;
+
+	let list = (s.parent ? s.parent.children : [s]).filter(
+		(x) => x.kind === "element",
+	);
+	let counts = new Map<string, number>();
+	let previous: State | undefined;
+	for (let i = 0; i < list.length; i++) {
+		let x = list[i];
+		let typeIndex = (counts.get(x.name) ?? 0) + 1;
+		counts.set(x.name, typeIndex);
+		ranks.set(x, {
+			previous,
+			index: i + 1,
+			count: list.length,
+			typeIndex,
+			typeCount: 0,
+		});
+		previous = x;
 	}
-	return found;
+	for (let x of list) ranks.get(x)!.typeCount = counts.get(x.name)!;
+	return ranks.get(s)!;
 }
 
-/**
- * Whether a single match should rank siblings, instead of scanning `list`
- * from its start. The first scan is free, and so is a rescan of the same
- * list after `before` walked to its start, which cost as much. Any other
- * rescan, as when a nested selector moved the hint or backtracking checks a
- * position again, ranks siblings instead to avoid repeating full scans.
- */
-function ranked(c: Scope, list: State[]): boolean {
-	if (!c.ranks && c.list !== undefined && (c.list !== list || c.hint !== -1)) {
-		c.ranks = new Map();
-	}
-	c.list = list;
-	return c.ranks !== undefined;
-}
-
-/** The position of a state, found by scanning its siblings. */
-function place(c: Scope, s: State, last: boolean, type: boolean): number {
-	let list = family(s);
-	c.list = list;
-	c.hint = -2;
-	let at = 0;
-	let count = 0;
-	for (let x of list) {
-		if (x.kind !== "element" || (type && x.name !== s.name)) continue;
-		count++;
-		if (x === s) {
-			if (!last) return count;
-			at = count;
-		}
-	}
-	return count - at + 1;
-}
-
-/** The previous element sibling of `s`, starting from where the last one was found. */
-function before(c: Scope, s: State): State | undefined {
-	let list = family(s);
-	let i = c.hint;
-	if (list[i] !== s) return rescan(c, list, s);
-	while (--i >= 0 && list[i].kind !== "element");
-	c.hint = i;
-	return list[i];
-}
-
-/** Like {@link before}, when the hint is not at `s`. */
-function rescan(c: Scope, list: State[], s: State): State | undefined {
-	if (ranked(c, list)) return rank(c.ranks!, s).previous;
-	let i = list.indexOf(s);
-	while (--i >= 0 && list[i].kind !== "element");
-	c.hint = i;
-	return list[i];
-}
-
-/** The position of a state, using query ranks or scanning; see {@link ranked}. */
-function order(c: Scope, s: State, last: boolean, type: boolean): number {
-	if (!c.ranks && (c.list === undefined || !ranked(c, family(s)))) {
-		return place(c, s, last, type);
-	}
-	let r = rank(c.ranks!, s);
-	let at = type ? r.typeIndex : r.index;
-	let count = type ? r.typeCount : r.count;
-	return last ? count - at + 1 : at;
-}
-
-const matcher = select.engine<Scope, State>({
+const matcher = select.engine<Ranks, State>({
 	name: (_, s) => s.name,
 	attr(_, s, key) {
 		let attrs = attributes(s);
@@ -642,20 +590,20 @@ const matcher = select.engine<Scope, State>({
 		let p = s.parent;
 		return p && p.kind === "element" ? p : undefined;
 	},
-	position(c, s, last, type) {
-		if (!c.ranks && c.list === undefined) return place(c, s, last, type);
-		return order(c, s, last, type);
+	position(ranks, s, last, type) {
+		let r = rank(ranks, s);
+		let at = type ? r.typeIndex : r.index;
+		let count = type ? r.typeCount : r.count;
+		return last ? count - at + 1 : at;
 	},
-	previous(c, s) {
-		return c.ranks ? rank(c.ranks, s).previous : before(c, s);
-	},
+	previous: (ranks, s) => rank(ranks, s).previous,
 	empty(_, s) {
 		return !s.children.some((x) => x.kind === "element" || x.kind === "text");
 	},
 });
 
 export function matches(s: State, list: Selector): boolean {
-	return s.kind === "element" && matcher(scope(), s, list);
+	return s.kind === "element" && matcher(new Map(), s, list);
 }
 
 /**
@@ -664,12 +612,12 @@ export function matches(s: State, list: Selector): boolean {
  */
 export function all(root: State, list: Selector, limit = Infinity): State[] {
 	let output: State[] = [];
-	let c = scope(new Map());
+	let ranks: Ranks = new Map();
 	let stack = [...root.children].reverse();
 
 	for (let s = stack.pop(); s; s = stack.pop()) {
 		if (s.kind !== "element") continue;
-		if (matcher(c, s, list)) {
+		if (matcher(ranks, s, list)) {
 			output.push(s);
 			if (output.length >= limit) break;
 		}

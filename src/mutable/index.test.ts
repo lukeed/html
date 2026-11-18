@@ -740,7 +740,7 @@ describe("self-closed integration points", () => {
 		doc = mutable.parse(icon);
 		let symbol = mutable.parse("<svg><symbol></symbol></svg>").find("symbol")!;
 		for (let child of doc.find("svg")!.children) symbol.append(child.clone());
-		expect(symbol.children.map((c) => c.name)).toEqual(["title", "desc", "path"]);
+		expect(symbol.children.map((x) => x.type === "element" && x.name)).toEqual(["title", "desc", "path"]);
 		expect(mutable.stringify(symbol)).toBe(
 			'<symbol><title/><desc/><path fill="#000" d="M1"/></symbol>',
 		);

@@ -17,8 +17,8 @@ export type {
 /**
  * Parse HTML into a {@link Document}. Never throws; malformed HTML is
  * recovered the same way htmlparser2 does. Unlike htmlparser2, `/>` also
- * closes `<title>`, `<desc>` and `<foreignObject>` inside `<svg>`, and the
- * MathML text elements like `<mi>` inside `<math>`.
+ * closes `<title>`, `<desc>` and `<foreignObject>` inside `<svg>`, and
+ * `<mi>`, `<mo>`, `<mn>`, `<ms>`, `<mtext>` and `<annotation-xml>` inside `<math>`.
  * @example
  * let doc = parse('<title>Hi</title><link rel="canonical" href="/">');
  * doc.find("title")?.text; //=> "Hi"

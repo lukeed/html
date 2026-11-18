@@ -615,9 +615,11 @@ const matcher = select.engine<Scope, State>({
 		for (let x of family(s)) {
 			if (x.kind !== "element" || (type && x.name !== s.name)) continue;
 			count++;
-			if (x === s) at = count;
+			if (x !== s) continue;
+			if (!last) return count;
+			at = count;
 		}
-		return last ? count - at + 1 : at;
+		return count - at + 1;
 	},
 	previous(c, s) {
 		let r = rank(c, s);

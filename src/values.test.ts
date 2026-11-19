@@ -40,3 +40,23 @@ describe("spans", () => {
 		}
 	});
 });
+
+test("attribute caches are allocated independently on first read", () => {
+	let t = tree.build(
+		'<main><p CLASS=x class=y data-v="&amp;"></p><p></p></main>',
+	);
+	expect(t.pairs).toBeUndefined();
+	expect(t.attrs).toBeUndefined();
+	let list = values.pairs(t, 2);
+	expect(list).toEqual(["class", "x", "data-v", "&"]);
+	expect(values.pairs(t, 2)).toBe(list);
+	expect(t.pairs).toHaveLength(t.kind.length);
+	expect(t.attrs).toBeUndefined();
+	let record = values.attributes(t, 2);
+	expect(record).toEqual({ class: "x", "data-v": "&" });
+	expect(Object.isFrozen(record)).toBe(true);
+	expect(values.attributes(t, 2)).toBe(record);
+	expect(t.attrs).toHaveLength(t.kind.length);
+	expect(values.attributes(t, 3)).toEqual({});
+	expect(values.pairs(t, 3)).toEqual([]);
+});

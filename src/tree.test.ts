@@ -74,6 +74,10 @@ const CASES: Record<string, string> = {
 	doctypes: "<!doctype html><!DOCTYPE html><!DocType x>",
 	"empty end tag": "<p>a</>b</p>",
 	"cdata in svg": "<svg><style><![CDATA[a&amp;<b>]]></style></svg>",
+	"svg end tags in html content":
+		"<svg><foreignObject><p>x</p></foreignObject><clipPath><foreignObject>y</CLIPPATH><g/></svg><p>z</p>",
+	"svg in foreignObject":
+		"<svg><foreignObject><svg><foreignObject>x</foreignobject><rect/></svg></foreignObject><g/></svg>",
 	"eof in start tag": '<p>a<a href="x',
 	"eof in unquoted value": "<p>a<a b=c",
 	"eof in attribute name": "<p>a<a b",
@@ -215,6 +219,27 @@ describe("build()", () => {
 			outline("<svg><foreignObject><title/>x</title></foreignObject></svg>"),
 		).toBe("svg(foreignObject(title(x)))");
 		expect(outline("<math><mi><mi/>x</mi></math>")).toBe("math(mi(mi(x)))");
+	});
+
+	test("an SVG end tag closes its element from HTML content", () => {
+		expect(
+			outline(
+				"<svg><foreignObject><p>x</p></foreignObject><rect/></svg><p>after</p>",
+			),
+		).toBe("svg(foreignObject(p(x)),rect()),p(after)");
+		expect(
+			outline(
+				"<svg><FOREIGNOBJECT>x</FOREIGNOBJECT><foreignObject>y</foreignobject><g/></svg>",
+			),
+		).toBe("svg(foreignObject(x),foreignObject(y),g())");
+		expect(
+			outline(
+				"<svg><clipPath>x</clippath><clipPath><foreignObject>y</clipPath><g/></svg>",
+			),
+		).toBe("svg(clipPath(x),clipPath(foreignObject(y)),g())");
+		expect(outline("<div><clippath>x</CLIPPATH>y</div>")).toBe(
+			"div(clippath(x),y)",
+		);
 	});
 
 	test("comment, directive, and CDATA values follow browsers", () => {

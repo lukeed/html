@@ -939,6 +939,12 @@ describe("children", () => {
 		expect(out).toBe('<div class="x"><b><span>x</b> y</div><p>more</p>');
 		expect(shape(mutable.parse(out))).toBe(shape(doc));
 	});
+
+	test("ignored end tags stay when an edited opener's children were never read", () => {
+		let doc = mutable.parse("<p><b><a>x</b></a> y</p>");
+		doc.find("b")?.setAttr("k", "1");
+		expect(mutable.stringify(doc)).toBe('<p><b k="1"><a>x</b></a> y</p>');
+	});
 });
 
 describe("Document", () => {

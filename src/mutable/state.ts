@@ -568,7 +568,7 @@ function keepsOpener(child: State, t: Tree, id: number): boolean {
 		let x = pending.pop()!;
 		if (x.tree !== t) continue;
 		if (x.id === id) return x.name === t.name[id];
-		if (!x.dirty) {
+		if (!x.dirty || x.children === undefined) {
 			if (x.id < id && id < t.stop[x.id]) return true;
 			continue;
 		}
@@ -590,7 +590,7 @@ function implicit(t: Tree, id: number): boolean {
 /** The children of `s`, with saved end tags at their original child boundaries. */
 function strays(s: State): (State | string)[] {
 	let t = s.tree;
-	let list = s.children;
+	let list = children(s);
 	let tags = t?.strays?.get(s.id);
 	if (!t || !tags || current(s)) return list;
 

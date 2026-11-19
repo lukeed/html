@@ -635,7 +635,10 @@ const matcher = select.engine<Scope, State>({
 });
 
 export function matches(s: State, list: Selector): boolean {
-	return s.kind === "element" && matcher({ ranks: undefined, scanned: false }, s, list);
+	return (
+		s.kind === "element" &&
+		matcher({ ranks: undefined, scanned: false }, s, list)
+	);
 }
 
 /**

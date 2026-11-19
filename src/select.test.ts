@@ -265,9 +265,7 @@ describe("select", () => {
 				expect(t.kind.length).toBe(size);
 				let nested = t.name.indexOf("b");
 				let first = siblings.ranks(t, nestedFirst ? nested : size - 1);
-				expect(siblings.ranks(t, nestedFirst ? size - 1 : nested)).toBe(
-					first,
-				);
+				expect(siblings.ranks(t, nestedFirst ? size - 1 : nested)).toBe(first);
 				expect(Object.values(first).every((x) => x instanceof Column)).toBe(
 					true,
 				);

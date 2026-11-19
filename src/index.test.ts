@@ -211,3 +211,12 @@ describe("leaf nodes", () => {
 		);
 	});
 });
+
+test("lazy wrappers preserve identity across navigation and queries", () => {
+	let doc = html.parse("<main><p>x</p><p>y</p></main>");
+	let first = doc.find("p")!;
+	expect(doc.all("p")[0]).toBe(first);
+	expect(doc.find("main")!.children[0]).toBe(first);
+	expect(first.parent).toBe(doc.find("main")!);
+	expect(doc.children[0]).toBe(doc.find("main")!);
+});

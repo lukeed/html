@@ -34,9 +34,9 @@ export type Tree = {
 	/** Where the attribute segment of an element begins. */
 	head: Int32Array;
 	/** Parsed attributes as `[name, value, ...]`, filled on first read. */
-	pairs: (string[] | undefined)[];
+	pairs: (string[] | undefined)[] | undefined;
 	/** Frozen attribute records, filled on first read of `attributes`. */
-	attrs: (Readonly<Record<string, string>> | undefined)[];
+	attrs: (Readonly<Record<string, string>> | undefined)[] | undefined;
 	/** Element ids by tag name, built on first query. */
 	tags: Map<string, number[]> | undefined;
 	/** The source was parsed as foreign content, like the inside of `<svg>`. */
@@ -619,8 +619,8 @@ export function build(source: string, foreign?: boolean): Tree {
 		from: from.slice(0, size),
 		to: to.slice(0, size),
 		head: head.slice(0, size),
-		pairs: new Array(size),
-		attrs: new Array(size),
+		pairs: undefined,
+		attrs: undefined,
 		tags: undefined,
 		foreign: base,
 	};

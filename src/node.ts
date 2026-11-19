@@ -13,13 +13,14 @@ export type { Position } from "./position";
 
 type Context = {
 	tree: Tree;
-	nodes: (Node | undefined)[];
+	nodes: (Node | undefined)[] | undefined;
 	lines: number[] | undefined;
 	document: Document;
 };
 
 function wrap(ctx: Context, id: number): Node {
-	let found = ctx.nodes[id];
+	let nodes = (ctx.nodes ??= new Array(ctx.tree.kind.length));
+	let found = nodes[id];
 	if (found) return found;
 
 	let kind = ctx.tree.kind[id];
@@ -32,7 +33,7 @@ function wrap(ctx: Context, id: number): Node {
 					? new Comment(ctx, id)
 					: new Directive(ctx, id);
 
-	ctx.nodes[id] = node;
+	nodes[id] = node;
 	return node;
 }
 
@@ -80,7 +81,7 @@ export class Document {
 	constructor(t: Tree) {
 		this.#ctx = {
 			tree: t,
-			nodes: new Array(t.kind.length),
+			nodes: undefined,
 			lines: undefined,
 			document: this,
 		};

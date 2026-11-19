@@ -320,3 +320,11 @@ describe("build()", () => {
 		}
 	});
 });
+
+test("raw-text closing compares ASCII case without accepting prefixes", () => {
+	for (let name of ["script", "style", "title", "textarea"]) {
+		expect(
+			outline(`<${name}>a</${name}x>b</${name.toUpperCase()} ><p>end</p>`),
+		).toBe(`${name}(a</${name}x>b),p(end)`);
+	}
+});

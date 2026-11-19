@@ -8,6 +8,40 @@ function intern(source: string, from: number, to: number): string {
 	return names.intern(KNOWN, source, from, to);
 }
 
+describe("read()", () => {
+	test("scans and interns exactly through each HTML name terminator", () => {
+		for (let name of [
+			"DIV",
+			"ForeignObject",
+			"h1",
+			"di",
+			"dir",
+			"divx",
+			"My-Element",
+			"aK",
+			"aİ",
+			"a\u000bb",
+		]) {
+			for (let tail of [" ", "\t", "\n", "\r", "\f", "/", ">", ""]) {
+				let source = "xx" + name + tail;
+				expect(names.read(KNOWN, source, 2)).toBe(
+					intern(source, 2, 2 + name.length),
+				);
+				expect(names.end).toBe(2 + name.length);
+			}
+		}
+	});
+
+	test("updates the end offset for empty and consecutive reads", () => {
+		expect(names.read(KNOWN, "<DIV>", 1)).toBe("div");
+		expect(names.end).toBe(4);
+		expect(names.read(KNOWN, ">", 0)).toBe("");
+		expect(names.end).toBe(0);
+		expect(names.read(KNOWN, "", 0)).toBe("");
+		expect(names.end).toBe(0);
+	});
+});
+
 describe("intern()", () => {
 	test("should lowercase known names", () => {
 		expect(intern("<DIV>", 1, 4)).toBe("div");

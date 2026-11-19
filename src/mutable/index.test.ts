@@ -729,6 +729,222 @@ describe("children", () => {
 			'<div><span class="x">a</span><br></div>',
 		);
 	});
+
+	test("ignored end tags stay in place when their parent is rebuilt", () => {
+		let link =
+			"<p><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>";
+		let em = () => mutable.parse("<em>new</em>").children;
+		let cases: [string, (doc: mutable.Document) => void, string][] = [
+			[
+				link,
+				(d) => d.find("p")?.setAttr("class", "x"),
+				'<p class="x"><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>',
+			],
+			[
+				"<p><strong>Read the <a href=x>label</strong></A> rest.</p><h2>H</h2><p>more</p>",
+				(d) => d.find("p")?.setAttr("class", "x"),
+				'<p class="x"><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>',
+			],
+			[
+				"<svg><a/></a></svg>",
+				(d) => d.find("svg")?.setAttr("id", "x"),
+				'<svg id="x"><a/></a></svg>',
+			],
+			[
+				"<div><form>a</div></form><form id=f><input></form>",
+				(d) => d.find("div")?.setAttr("class", "x"),
+				'<div class="x"><form>a</div></form><form id=f><input></form>',
+			],
+			[
+				"<b><a>x</b></a><h2>H</h2><p>more</p>",
+				(d) => d.find("b")?.after(...em()),
+				"<b><a>x</b></a><em>new</em><h2>H</h2><p>more</p>",
+			],
+			[
+				"<h2><em>H</em></h2><p><strong>Read the <a href=x>label</strong></a> rest.</p><p>more</p>",
+				(d) => {
+					let h = d.find("em");
+					if (h) d.find("strong")?.after(h);
+				},
+				"<h2></h2><p><strong>Read the <a href=x>label</strong></a><em>H</em> rest.</p><p>more</p>",
+			],
+			[
+				"<b><a>x</b><p></a>y</p><p>more</p>",
+				(d) => d.find("p")?.prepend(...em()),
+				"<b><a>x</b><p></a><em>new</em>y</p><p>more</p>",
+			],
+			[
+				"<div><b><a>x</b><!--c--></a> y</div><p>more</p>",
+				(d) => d.find("div")?.children[1].remove(),
+				"<div><b><a>x</b></a> y</div><p>more</p>",
+			],
+			[
+				"<div><b><a>x</b><!--c--></a> y</div><p>more</p>",
+				(d) => d.find("div")?.children[1].replace(...em()),
+				"<div><b><a>x</b></a><em>new</em> y</div><p>more</p>",
+			],
+			[
+				"<div><b><i><i>x</b></i> y</i> z</div><p>more</p>",
+				(d) => d.find("div")?.setAttr("class", "x"),
+				'<div class="x"><b><i><i>x</b></i> y</i> z</div><p>more</p>',
+			],
+			[
+				"<div><b><a>x</b></a></a> y</div><p>more</p>",
+				(d) => d.find("div")?.setAttr("class", "x"),
+				'<div class="x"><b><a>x</b></a></a> y</div><p>more</p>',
+			],
+			[
+				"<div><b><a>x</b><p>y<div>z</div></a> w</div>",
+				(d) => d.all("div")[1].remove(),
+				"<div><b><a>x</b><p>y</p></a> w</div>",
+			],
+		];
+		for (let [source, edit, expected] of cases) {
+			let doc = mutable.parse(source);
+			edit(doc);
+			expect(mutable.stringify(doc)).toBe(expected);
+			expect(shape(mutable.parse(expected))).toBe(shape(doc));
+		}
+	});
+
+	test("ignored end tags are dropped when their children are replaced or moved out", () => {
+		let source = "<p><strong><a>x</strong></a> y</p><section></section>";
+		for (let key of ["html", "text"] as const) {
+			let doc = mutable.parse(source);
+			let p = doc.find("p")!;
+			p[key] = "hello";
+			expect(p.html).toBe("hello");
+			expect(mutable.stringify(doc)).toBe("<p>hello</p><section></section>");
+		}
+
+		let doc = mutable.parse(source);
+		let p = doc.find("p")!;
+		doc.find("section")!.append(...p.children);
+		expect(p.html).toBe("");
+		expect(mutable.stringify(p)).toBe("<p></p>");
+	});
+
+	test("ignored end tags follow reordered children", () => {
+		let doc = mutable.parse(
+			"<div><b><a>x</b></a><i><s>y</i></s><span>z</span></div>",
+		);
+		doc.find("div")!.append(doc.find("b")!);
+		expect(mutable.stringify(doc)).toBe(
+			"<div><i><s>y</i></s><span>z</span><b><a>x</b></a></div>",
+		);
+	});
+
+	test("ignored end tags are dropped with their opener, not attached to siblings", () => {
+		for (let [selector, opener] of [
+			["b", "<em>x"],
+			["em", "<em>x"],
+			["b", "<em/>"],
+		]) {
+			let doc = mutable.parse(
+				`<div><span>before</span><b>${opener}</b><!--c--></em> y</div>`,
+			);
+			doc.find(selector)!.remove();
+			let wrapper = selector === "b" ? "" : "<b></b>";
+			expect(mutable.stringify(doc)).toBe(
+				`<div><span>before</span>${wrapper}<!--c--> y</div>`,
+			);
+		}
+	});
+
+	test("moving a comment does not move an ignored end tag away from its opener", () => {
+		let doc = mutable.parse(
+			"<div><b><em>x</b><!--c--></em><span>y</span></div>",
+		);
+		let div = doc.find("div")!;
+		div.append(div.children[1]);
+		expect(mutable.stringify(doc)).toBe(
+			"<div><b><em>x</b></em><span>y</span><!--c--></div>",
+		);
+	});
+
+	test("putting a new or moved comment before existing text does not move its closer", () => {
+		for (let trailing of ["", "<!--c-->"]) {
+			let doc = mutable.parse(`<div><b><em>x</b> y</em> z${trailing}</div>`);
+			let comment = trailing
+				? doc.find("div")!.children.at(-1)!
+				: mutable.parse("<!--c-->").children[0];
+			doc.find("b")!.after(comment);
+			expect(mutable.stringify(doc)).toBe(
+				"<div><b><em>x</b><!--c--> y</em> z</div>",
+			);
+		}
+	});
+
+	test("nested same-name openers have separate ignored end tags", () => {
+		let doc = mutable.parse("<div><b><i><i>x</b></i> y</i> z</div>");
+		doc.all("i")[1].remove();
+		expect(mutable.stringify(doc)).toBe("<div><b><i></b> y</i> z</div>");
+	});
+
+	test("moving an in-range comment does not make following original text look reordered", () => {
+		let doc = mutable.parse("<div><b><em>x</b> y<!--c--></em> z</div>");
+		doc.find("b")!.after(doc.find("div")!.children[2]);
+		expect(mutable.stringify(doc)).toBe(
+			"<div><b><em>x</b><!--c--> y</em> z</div>",
+		);
+	});
+
+	test("an ignored end tag for an outside opener can become leading", () => {
+		let doc = mutable.parse("<b><em>x</b><p>y</em><span>z</span></p>");
+		doc.find("p")!.children[0].remove();
+		expect(mutable.stringify(doc)).toBe(
+			"<b><em>x</b><p></em><span>z</span></p>",
+		);
+	});
+
+	test("only earlier implicit closes qualify an outside opener", () => {
+		let doc = mutable.parse(
+			"<svg><a/></svg><a></a><p><span>x</span></a>y</p>" +
+				"<b><a>x</b><p><span>x</span></a>y</p>",
+		);
+		for (let span of doc.all("span")) span.remove();
+		expect(mutable.stringify(doc)).toBe(
+			"<svg><a/></svg><a></a><p>y</p><b><a>x</b><p></a>y</p>",
+		);
+	});
+
+	test("replacing every child keeps only leading closers needed by outside openers", () => {
+		for (let content of ["y</em>", "</em>y"]) {
+			let doc = mutable.parse(
+				`<b><em>x</b><p>${content}</p><span>after</span>`,
+			);
+			doc.find("p")!.html = "z";
+			expect(mutable.stringify(doc)).toBe(
+				"<b><em>x</b><p></em>z</p><span>after</span>",
+			);
+		}
+
+		let doc = mutable.parse("<p></em>y</p>");
+		doc.find("p")!.html = "z";
+		expect(mutable.stringify(doc)).toBe("<p>z</p>");
+	});
+
+	test("ignored end tags cannot become text after renaming their parent", () => {
+		let doc = mutable.parse("<div>x</em> y</div>");
+		let div = doc.find("div")!;
+		div.name = "textarea";
+		expect(div.html).toBe("x y");
+		expect(mutable.stringify(doc)).toBe("<textarea>x y</textarea>");
+	});
+
+	test("ignored end tags of other names are not kept", () => {
+		let doc = mutable.parse("<div><b><span>x</b></span> y</div><p>more</p>");
+		doc.find("div")?.setAttr("class", "x");
+		let out = mutable.stringify(doc);
+		expect(out).toBe('<div class="x"><b><span>x</b> y</div><p>more</p>');
+		expect(shape(mutable.parse(out))).toBe(shape(doc));
+	});
+
+	test("ignored end tags stay when an edited opener's children were never read", () => {
+		let doc = mutable.parse("<p><b><a>x</b></a> y</p>");
+		doc.find("b")?.setAttr("k", "1");
+		expect(mutable.stringify(doc)).toBe('<p><b k="1"><a>x</b></a> y</p>');
+	});
 });
 
 describe("Document", () => {

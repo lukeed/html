@@ -510,12 +510,17 @@ function own(t: Tree, s: State): boolean {
  * Whether element `s`, in `parent` before `next`, needs an end tag that its
  * source omits, because what closed it in the source no longer follows it.
  */
-function unclosed(s: State, parent: State, next: State | undefined): boolean {
+function unclosed(
+	s: State,
+	parent: State,
+	next: State | string | undefined,
+): boolean {
 	let t = s.tree;
 	if (s.kind !== "element" || !t || !own(t, s)) return false;
 	let id = s.id;
 	if (t.to[id] !== t.end[id] || tree.VOID.has(s.name)) return false;
 
+	if (typeof next === "string") return !selfClosed(t, s);
 	let after = t.stop[id];
 	let sibling = after < t.kind.length && t.parent[after] === t.parent[id];
 	if (next) {
@@ -543,11 +548,146 @@ function ended(s: State): boolean {
  */
 function content(s: State): string {
 	let output = "";
-	let list = children(s);
+	let list = strays(s);
 	for (let i = 0; i < list.length; i++) {
 		let child = list[i];
+		if (typeof child === "string") {
+			output += child;
+			continue;
+		}
 		output += serialize(child);
 		if (unclosed(child, s, list[i + 1])) output += `</${child.name}>`;
+	}
+	return output;
+}
+
+/** Whether the original opener still belongs to this child. */
+function keepsOpener(child: State, t: Tree, id: number): boolean {
+	let pending = [child];
+	while (pending.length > 0) {
+		let x = pending.pop()!;
+		if (x.tree !== t) continue;
+		if (x.id === id) return x.name === t.name[id];
+		if (!x.dirty || x.children === undefined) {
+			if (x.id < id && id < t.stop[x.id]) return true;
+			continue;
+		}
+		for (let nested of x.children) pending.push(nested);
+	}
+	return false;
+}
+
+/** Whether a tracked start tag closed implicitly rather than with `/>`. */
+function implicit(t: Tree, id: number): boolean {
+	return (
+		t.to[id] === t.end[id] &&
+		(t.from[id] !== t.end[id] ||
+			!tree.foreign(t, t.parent[id]) ||
+			!tree.selfClosing(t.source, t.head[id]))
+	);
+}
+
+/**
+ * Whether `list` holds the children of `s` exactly as parsed: from tree `t`,
+ * in source order, and unedited inside.
+ */
+function parsed(t: Tree, s: State, list: State[]): boolean {
+	let id = s.id + 1;
+	for (let x of list) {
+		if (x.tree !== t || x.id !== id || x.dirty) return false;
+		id = t.stop[id];
+	}
+	return id === t.stop[s.id];
+}
+
+/** The children of `s`, with saved end tags at their original child boundaries. */
+function strays(s: State): (State | string)[] {
+	let t = s.tree;
+	let list = children(s);
+	let tags = t?.strays?.get(s.id);
+	if (!t || !tags || current(s)) return list;
+
+	// Nothing moved, so every saved end tag stays where the source has it.
+	if (list.length > 0 && parsed(t, s, list)) {
+		let output: (State | string)[] = [];
+		let j = 0;
+		let close = "";
+		for (; j < tags.length && tags[j].follows <= s.id; j++)
+			close += `</${tags[j].name}>`;
+		if (close) output.push(close);
+		for (let x of list) {
+			output.push(x);
+			close = "";
+			for (
+				let stop = t.stop[x.id];
+				j < tags.length && tags[j].follows < stop;
+				j++
+			)
+				close += `</${tags[j].name}>`;
+			if (close) output.push(close);
+		}
+		return output;
+	}
+
+	let present = new Map<number, number>();
+	let original = list.map((child, i) => {
+		if (child.tree !== t || t.parent[child.id] !== s.id) return -1;
+		present.set(child.id, i);
+		return child.id;
+	});
+
+	let after = new Map<number, string>();
+	type Opener = { id: number; owner: number };
+	let openers = new Map<string, { pending: Opener[]; last?: Opener }>();
+	for (let { name } of tags) openers.set(name, { pending: [] });
+	let next = s.id + 1;
+	let previous = -1;
+	let lastKept = -1;
+	for (let tag of tags) {
+		while (next <= tag.follows) {
+			previous = next;
+			if (present.has(next)) lastKept = next;
+			next = t.stop[next];
+			for (let id = previous; id < next; id++) {
+				let matches = openers.get(t.name[id]);
+				if (matches && implicit(t, id))
+					matches.pending.push({ id, owner: previous });
+			}
+		}
+
+		let matches = openers.get(tag.name)!;
+		// Redundant closers reuse the last opener once all matches are used.
+		let opener = (matches.last = matches.pending.pop() ?? matches.last);
+		let at = previous === -1 && present.size ? -1 : present.get(previous);
+		if (opener) {
+			at = present.get(opener.owner);
+			if (at === undefined || !keepsOpener(list[at], t, opener.id)) continue;
+			// Keep intervening siblings only while they still follow the opener in source order.
+			let id = opener.owner;
+			for (let i = at + 1; i < list.length; i++) {
+				let nextId = original[i];
+				if (nextId <= id || nextId > previous) {
+					if (list[i].kind === "comment") continue;
+					break;
+				}
+				if (list[i].kind !== "comment") id = nextId;
+				at = i;
+			}
+		} else if (at === undefined) {
+			let stop = t.firstImplicitEnd?.get(tag.name);
+			if (stop === undefined || stop > s.id) continue;
+			at = present.get(lastKept) ?? -1;
+		}
+		after.set(at, (after.get(at) ?? "") + `</${tag.name}>`);
+	}
+
+	if (!after.size) return list;
+	let leading = after.get(-1);
+	let output: (State | string)[] = leading ? [leading] : [];
+	for (let [i, child] of list.entries()) {
+		output.push(child);
+		let close = after.get(i);
+		if (close) output.push(close);
 	}
 	return output;
 }

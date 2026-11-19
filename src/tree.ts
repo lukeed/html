@@ -45,7 +45,18 @@ export type Tree = {
 	ranks: Ranks | undefined;
 	/** The source was parsed as foreign content, like the inside of `<svg>`. */
 	foreign: boolean;
+	/**
+	 * End tags that the parser ignored, but browsers may act on, by the id of
+	 * the element they are in, in source order; `undefined` when there are
+	 * none. See {@link build}.
+	 */
+	strays: Map<number, Stray[]> | undefined;
+	/** First subtree stop of an implicitly closed tracked element, by name. */
+	firstImplicitEnd: Map<string, number> | undefined;
 };
+
+/** An ignored end tag, and the id of the node before it in the source. */
+export type Stray = { name: string; follows: number };
 
 export const RAW = new Set([
 	"script",
@@ -80,6 +91,16 @@ export const VOID = new Set([
 	"track",
 	"wbr",
 ]);
+
+/**
+ * Elements that browsers keep track of until they see their own end tag,
+ * even when the end tag of an outer element has already closed them.
+ * Browsers open formatting elements again around the content that follows,
+ * and ignore new `<form>` start tags while a `form` is tracked.
+ */
+const TRACKED = new Set(
+	"a b big code em font form i nobr s small strike strong tt u".split(" "),
+);
 
 /** Elements whose children are foreign content. */
 export const FOREIGN = new Set(["math", "svg"]);
@@ -406,6 +427,10 @@ export function foreign(t: Tree, id: number): boolean {
  * Tree construction follows htmlparser2, not the WHATWG spec. Unlike
  * htmlparser2, `/>` in foreign content also closes {@link INTEGRATION}
  * elements, like `<svg><title/>`.
+ *
+ * End tags of {@link TRACKED} elements that close nothing here, like the
+ * `</a>` in `<b><a>x</b></a>`, are kept in {@link Tree.strays}, since
+ * browsers may act on them.
  */
 export function build(source: string, foreign?: boolean): Tree {
 	let n = source.length;
@@ -426,6 +451,8 @@ export function build(source: string, foreign?: boolean): Tree {
 	let alien = base;
 	let contexts: boolean[] = [];
 	let owners: number[] = [];
+	let strays: Map<number, Stray[]> | undefined;
+	let firstImplicitEnd: Map<string, number> | undefined;
 	let text = 0;
 	let i = 0;
 
@@ -471,6 +498,12 @@ export function build(source: string, foreign?: boolean): Tree {
 		end[id] = at;
 		to[id] = inner;
 		stop[id] = size;
+		if (at === inner && TRACKED.has(names[id])) {
+			let name = names[id];
+			firstImplicitEnd ??= new Map();
+			// Stops never decrease as elements are popped.
+			if (!firstImplicitEnd.has(name)) firstImplicitEnd.set(name, size);
+		}
 		if (owners.length > 0 && owners[owners.length - 1] === id) {
 			owners.pop();
 			contexts.pop();
@@ -563,6 +596,12 @@ export function build(source: string, foreign?: boolean): Tree {
 				pop(e + 1, lt);
 			} else if (name === "p") {
 				add(ELEMENT, "p", lt, e + 1, e + 1, e + 1, e);
+			} else if (TRACKED.has(name)) {
+				let p = stack[stack.length - 1];
+				let stray = { name, follows: size - 1 };
+				let list = (strays ??= new Map()).get(p);
+				if (list) list.push(stray);
+				else strays.set(p, [stray]);
 			}
 			continue;
 		}
@@ -649,5 +688,7 @@ export function build(source: string, foreign?: boolean): Tree {
 		tags: undefined,
 		ranks: undefined,
 		foreign: base,
+		strays,
+		firstImplicitEnd: strays ? firstImplicitEnd : undefined,
 	};
 }

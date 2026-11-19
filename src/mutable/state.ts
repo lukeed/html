@@ -338,7 +338,10 @@ function added(s: State, entries: [string, string][], from: number): string {
 function open(s: State, slash: boolean, bare: boolean): string {
 	let t = s.tree;
 	let entries = Object.entries(attributes(s));
-	if (!t) return end("<" + s.name + added(s, entries, 0), slash);
+	if (!t) {
+		let extra = added(s, entries, 0);
+		return end("<" + s.name + extra, slash, extra ? '"' : s.name);
+	}
 
 	let list = values.pairs(t, s.id);
 	let count = list.length / 2;
@@ -355,31 +358,35 @@ function open(s: State, slash: boolean, bare: boolean): string {
 		if (bare) rest = rest.slice(0, -1).trimEnd();
 		let name =
 			s.name === t.name[s.id] ? s.source.slice(s.start, head) : "<" + s.name;
-		return end(name + rest + extra, slash);
+		return end(name + rest + extra, slash, extra ? '"' : rest || name);
 	}
 
 	let spans = values.spans(t, s.id);
 	let output = "<" + s.name;
+	let tail = output;
 	for (let [key, val] of entries) {
 		let at = values.find(spans, key, 3);
 		let raw = at === -1 ? "" : spans[at + 2];
 		if (INTACT.test(raw) && val === values.attribute(t, s.id, key)) {
 			output += " " + raw;
+			tail = raw;
 			continue;
 		}
 		let name = NAMES.get(s)?.[key] ?? (at === -1 ? key : spans[at + 1]);
 		output += ` ${name}="${escapeAttribute(val)}"`;
+		tail = '"';
 	}
-	return end(output, slash);
+	return end(output, slash, tail);
 }
 
 /**
  * Close a start tag with `>`, or with `/>` when `slash` is set. A space goes
  * before `/>` unless a quote ends the tag, so an unquoted value keeps its value.
+ * `tail` is the last piece of `tag`; reading `tag` itself would flatten it.
  */
-function end(tag: string, slash: boolean): string {
+function end(tag: string, slash: boolean, tail: string): string {
 	if (!slash) return tag + ">";
-	let c = tag.charCodeAt(tag.length - 1);
+	let c = tail.charCodeAt(tail.length - 1);
 	return tag + (c === 34 || c === 39 ? "/>" : " />");
 }
 

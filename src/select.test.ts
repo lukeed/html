@@ -3,6 +3,7 @@ import { selectAll } from "css-select";
 import { parseDocument } from "htmlparser2";
 
 import * as select from "./select";
+import * as siblings from "./siblings";
 import * as tree from "./tree";
 import * as values from "./values";
 
@@ -149,6 +150,135 @@ describe("select", () => {
 		});
 	}
 
+	test("indexes mixed sibling families with text, comments, and nested pseudos", () => {
+		let html = `<i id=a></i>text<!--c--><b id=b></b><i id=c></i><b id=d></b><i id=e></i><div><i id=f></i></div>`;
+		let t = tree.build(html);
+		let doc = parseDocument(html, { withStartIndices: true });
+		for (let selector of [
+			":nth-child(2n)",
+			":nth-last-child(-n+3)",
+			"i:nth-of-type(2)",
+			"b:nth-last-of-type(2)",
+			"i:only-of-type",
+			":is(:nth-of-type(2), :last-child)",
+			":not(:is(:first-child, :last-of-type))",
+			"i + b",
+			"i ~ i",
+			"i + b + i",
+			"i ~ b:nth-of-type(2)",
+		]) {
+			let expected = selectAll(selector, doc).map((x) => x.startIndex ?? -1);
+			let compiled = select.compile(selector);
+			for (let repeat = 0; repeat < 2; repeat++) {
+				expect(select.all(t, 0, compiled).map((id) => t.start[id])).toEqual(
+					expected,
+				);
+			}
+		}
+	});
+
+	test("immutable sibling ranks retain five 16-bit columns for small trees", () => {
+		let t = tree.build(`<i></i>text<!-- c --><b></b><i></i><div><b></b></div>`);
+		let first = t.name.indexOf("i");
+		let ranks = siblings.ranks(t, first);
+		expect(Object.values(ranks).every((x) => x instanceof Uint16Array)).toBe(
+			true,
+		);
+		expect(
+			Object.values(ranks).reduce((bytes, x) => bytes + x.byteLength, 0),
+		).toBe(10 * t.kind.length);
+		expect(ranks.index[first]).toBe(1);
+		expect(ranks.count[first]).toBe(4);
+		expect(ranks.typeCount[first]).toBe(2);
+		let nested = t.name.lastIndexOf("b");
+		expect(ranks.index[nested]).toBe(0); // Other families remain uninitialized.
+		expect(siblings.ranks(t, nested)).toBe(ranks);
+		expect(ranks.index[nested]).toBe(1);
+		expect(ranks.typeCount[nested]).toBe(1);
+	});
+
+	test("adapter position and previous hooks drive structural selectors", () => {
+		let matcher = select.engine<undefined, number>({
+			name: () => "i",
+			attr: () => undefined,
+			parent: () => undefined,
+			position: (_, n, last) => (last ? 3 - n : n + 1),
+			previous: (_, n) => (n > 0 ? n - 1 : undefined),
+			empty: () => true,
+		});
+		expect(matcher(undefined, 1, select.compile("i + i:nth-child(2)"))).toBe(
+			true,
+		);
+		expect(matcher(undefined, 2, select.compile("i ~ i:last-of-type"))).toBe(
+			true,
+		);
+		expect(matcher(undefined, 0, select.compile("i + i"))).toBe(false);
+	});
+
+	test("simple selectors never request sibling metadata", () => {
+		let matcher = select.engine<undefined, number>({
+			name: () => "i",
+			attr: () => "x",
+			parent: () => undefined,
+			position() {
+				throw new Error("unexpected sibling lookup");
+			},
+			previous() {
+				throw new Error("unexpected sibling lookup");
+			},
+			empty: () => true,
+		});
+		expect(matcher(undefined, 0, select.compile("i.x:is([id=x])"))).toBe(true);
+	});
+
+	test("sibling ranks of trees with 65536 or more nodes use 32-bit columns", () => {
+		let t = tree.build("<ul>" + "<li></li>".repeat(70000) + "</ul>");
+		let last = t.kind.length - 1;
+		let ranks = siblings.ranks(t, last);
+		expect(ranks.index).toBeInstanceOf(Int32Array);
+		expect(ranks.index[last]).toBe(70000);
+		expect(
+			select.matches(t, last, select.compile("li:nth-child(70000):last-child")),
+		).toBe(true);
+		expect(select.all(t, 0, select.compile("li:nth-child(65537)")).length).toBe(
+			1,
+		);
+	});
+
+	test("sibling columns preserve counts and high ids at the 16-bit boundary", () => {
+		for (let size of [65535, 65536, 65537]) {
+			let Column = size < 65536 ? Uint16Array : Int32Array;
+			let wide = tree.build("<i></i>".repeat(size - 1));
+			expect(wide.kind.length).toBe(size);
+			let ranks = siblings.ranks(wide, size - 1);
+			expect(Object.values(ranks).every((x) => x instanceof Column)).toBe(true);
+			expect(ranks.index[size - 1]).toBe(size - 1);
+			expect(ranks.count[size - 1]).toBe(size - 1);
+			expect(ranks.typeIndex[size - 1]).toBe(size - 1);
+			expect(ranks.typeCount[1]).toBe(size - 1);
+			expect(ranks.previous[size - 1]).toBe(size - 2);
+			expect(ranks.previous[1]).toBe(0);
+
+			let html = `<section>${"<!--c-->".repeat(size - 5)}<b></b></section><i></i><i></i>`;
+			for (let nestedFirst of [false, true]) {
+				let t = tree.build(html);
+				expect(t.kind.length).toBe(size);
+				let nested = t.name.indexOf("b");
+				let first = siblings.ranks(t, nestedFirst ? nested : size - 1);
+				expect(siblings.ranks(t, nestedFirst ? size - 1 : nested)).toBe(first);
+				expect(Object.values(first).every((x) => x instanceof Column)).toBe(
+					true,
+				);
+				expect(first.index[size - 1]).toBe(3);
+				expect(first.typeIndex[size - 1]).toBe(2);
+				expect(first.previous[size - 1]).toBe(size - 2);
+				expect(first.index[nested]).toBe(1);
+				expect(first.count[nested]).toBe(1);
+				expect(first.previous[nested]).toBe(0);
+			}
+		}
+	});
+
 	test("scopes results to the root", () => {
 		let main = select.all(ours, 0, select.compile("main"))[0];
 		let inside = select.all(ours, main, select.compile("p"));
@@ -177,6 +307,42 @@ describe("select", () => {
 	test("stops at the limit", () => {
 		expect(select.all(ours, 0, select.compile("li"), 2)).toHaveLength(2);
 	});
+
+	test("keeps cached single-tag candidates unchanged", () => {
+		let t = tree.build(
+			`<p id="before"></p><main><p id="inside"></p></main><p id="after"></p>`,
+		);
+		let all = select.all(t, 0, select.compile("p"));
+		let cached = t.tags!.get("p")!;
+		let expected = cached.slice();
+		Object.freeze(cached);
+		let root = t.name.indexOf("main");
+		expect(select.all(t, root, select.compile("p"), 1)).toEqual([all[1]]);
+		expect(select.all(t, 0, select.compile("p#after"))).toEqual([all[2]]);
+		expect(select.all(t, 0, select.compile("missing"))).toEqual([]);
+		all.pop();
+		expect(t.tags!.get("p")).toBe(cached);
+		expect(cached).toEqual(expected);
+		expect(select.all(t, 0, select.compile("p"))).toEqual(expected);
+	});
+
+	for (let indexed of [false, true]) {
+		test(`scopes first matches and skips template contents (${indexed ? "indexed" : "cold"})`, () => {
+			let t = tree.build(
+				`<p id="before"></p><main><template><p id="hidden"></p></template><p id="inside"></p><p id="later"></p></main><p id="after"></p>`,
+			);
+			let root = t.name.indexOf("main");
+			let template = t.name.indexOf("template");
+			if (indexed) select.all(t, 0, select.compile("p"));
+			let first = (scope: number) =>
+				select
+					.all(t, scope, select.compile("p"), 1)
+					.map((id) => values.attribute(t, id, "id"));
+			expect(first(root)).toEqual(["inside"]);
+			expect(first(template)).toEqual(["hidden"]);
+			expect(select.all(t, root, select.compile("missing"), 1)).toEqual([]);
+		});
+	}
 
 	test("supports escapes in identifiers and strings", () => {
 		let doc = tree.build(`<a id="a:b" class="1x" title='say "hi"'></a>`);

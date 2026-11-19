@@ -1,5 +1,7 @@
 import { read as readName, end as nameStop, same, table } from "./names";
 
+import type { Ranks } from "./siblings";
+
 export const DOCUMENT = 0;
 export const ELEMENT = 1;
 export const TEXT = 2;
@@ -39,6 +41,8 @@ export type Tree = {
 	attrs: (Readonly<Record<string, string>> | undefined)[] | undefined;
 	/** Element ids by tag name, built on first query. */
 	tags: Map<string, number[]> | undefined;
+	/** Element sibling positions, built on first structural query. */
+	ranks: Ranks | undefined;
 	/** The source was parsed as foreign content, like the inside of `<svg>`. */
 	foreign: boolean;
 };
@@ -643,6 +647,7 @@ export function build(source: string, foreign?: boolean): Tree {
 		pairs: undefined,
 		attrs: undefined,
 		tags: undefined,
+		ranks: undefined,
 		foreign: base,
 	};
 }

@@ -587,12 +587,47 @@ function implicit(t: Tree, id: number): boolean {
 	);
 }
 
+/**
+ * Whether `list` holds the children of `s` exactly as parsed: from tree `t`,
+ * in source order, and unedited inside.
+ */
+function parsed(t: Tree, s: State, list: State[]): boolean {
+	let id = s.id + 1;
+	for (let x of list) {
+		if (x.tree !== t || x.id !== id || x.dirty) return false;
+		id = t.stop[id];
+	}
+	return id === t.stop[s.id];
+}
+
 /** The children of `s`, with saved end tags at their original child boundaries. */
 function strays(s: State): (State | string)[] {
 	let t = s.tree;
 	let list = children(s);
 	let tags = t?.strays?.get(s.id);
 	if (!t || !tags || current(s)) return list;
+
+	// Nothing moved, so every saved end tag stays where the source has it.
+	if (list.length > 0 && parsed(t, s, list)) {
+		let output: (State | string)[] = [];
+		let j = 0;
+		let close = "";
+		for (; j < tags.length && tags[j].follows <= s.id; j++)
+			close += `</${tags[j].name}>`;
+		if (close) output.push(close);
+		for (let x of list) {
+			output.push(x);
+			close = "";
+			for (
+				let stop = t.stop[x.id];
+				j < tags.length && tags[j].follows < stop;
+				j++
+			)
+				close += `</${tags[j].name}>`;
+			if (close) output.push(close);
+		}
+		return output;
+	}
 
 	let present = new Map<number, number>();
 	let original = list.map((child, i) => {

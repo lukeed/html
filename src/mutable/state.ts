@@ -125,6 +125,36 @@ export function children(s: State): State[] {
 }
 
 /**
+ * The children of `s`, with every unread subtree below `s` made in one pass,
+ * so states that are read together are made together. A state with unread
+ * children has no states below it, so its subtree is copied straight from
+ * its tree. Leaves keep unread children.
+ */
+export function subtree(s: State): State[] {
+	let list = s.children;
+	if (list !== undefined) return list;
+	let t = s.tree!;
+	let doc = docOf(s);
+	let stop = t.stop[s.id];
+	let stack = [s];
+	s.children = [];
+	for (let id = s.id + 1; id < stop; id++) {
+		let p = stack[stack.length - 1];
+		while (p.id !== t.parent[id]) {
+			stack.pop();
+			p = stack[stack.length - 1];
+		}
+		let x = make(t, id, doc, p);
+		p.children!.push(x);
+		if (t.stop[id] > id + 1) {
+			x.children = [];
+			stack.push(x);
+		}
+	}
+	return s.children;
+}
+
+/**
  * Top-level states of `t` for `doc`, which have no parent yet.
  * Their children are read on demand.
  */

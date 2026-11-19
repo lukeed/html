@@ -304,13 +304,19 @@ describe("lazy states", () => {
 		expect(doc.find("ul")?.html).toBe("<li>1<li>2<li class=x>3");
 	});
 
-	test("reading children makes one level", () => {
+	test("reading children makes the unread subtree in one pass", () => {
 		let doc = mutable.parse("<div><p><b>x</b></p><i></i></div>y");
 		let [div, text] = doc.children;
 		expect(text.type).toBe("text");
-		expect(made(unwrap(doc))).toBe(3);
+		expect(made(unwrap(doc))).toBe(7);
 		expect(div.type === "element" && div.children.length).toBe(2);
+		expect(made(unwrap(doc))).toBe(7);
+
+		doc = mutable.parse("<div><p><b>x</b></p><i></i></div>y");
+		let p = doc.find("p");
 		expect(made(unwrap(doc))).toBe(5);
+		expect(p?.children.length).toBe(1);
+		expect(made(unwrap(doc))).toBe(7);
 	});
 
 	test("queries make only matches, their ancestors, and their siblings", () => {
@@ -474,7 +480,7 @@ describe("lazy states", () => {
 
 	test("sibling selectors at the edge of an unread subtree see edits", () => {
 		let doc = mutable.parse("<h2>a</h2><div><p>x</p></div><div><p>y</p></div>");
-		let [h2, first, second] = doc.children as Element[];
+		let [h2, first, second] = doc.all("h2, div");
 		h2.name = "h3";
 		expect(unwrap(second).children).toBeUndefined();
 		expect(doc.find("h2 + div p")).toBeUndefined();

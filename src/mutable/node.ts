@@ -215,7 +215,7 @@ export class Document extends Base {
 
 	/** Top-level nodes, in order. A new array on every read. */
 	get children(): Node[] {
-		return state.children(read(this)).map(node);
+		return state.subtree(read(this)).map(node);
 	}
 
 	/**
@@ -311,7 +311,7 @@ export class Element extends Child {
 
 	/** Child nodes, in order. A new array on every read. */
 	get children(): Node[] {
-		return state.children(read(this)).map(node);
+		return state.subtree(read(this)).map(node);
 	}
 
 	/**

@@ -520,7 +520,7 @@ function unclosed(
 	let id = s.id;
 	if (t.to[id] !== t.end[id] || tree.VOID.has(s.name)) return false;
 
-	if (typeof next === "string") return true;
+	if (typeof next === "string") return !selfClosed(t, s);
 	let after = t.stop[id];
 	let sibling = after < t.kind.length && t.parent[after] === t.parent[id];
 	if (next) {
@@ -605,7 +605,6 @@ function strays(s: State): (State | string)[] {
 	type Opener = { id: number; owner: number };
 	let openers = new Map<string, { pending: Opener[]; last?: Opener }>();
 	for (let { name } of tags) openers.set(name, { pending: [] });
-	let outside: Set<string> | undefined;
 	let next = s.id + 1;
 	let previous = -1;
 	let lastKept = -1;
@@ -640,16 +639,8 @@ function strays(s: State): (State | string)[] {
 				at = i;
 			}
 		} else if (at === undefined) {
-			// A closer can belong to an opener outside this parent.
-			if (!outside) {
-				outside = new Set();
-				for (let id = 1; id < s.id; id++) {
-					let name = t.name[id];
-					if (openers.has(name) && t.stop[id] <= s.id && implicit(t, id))
-						outside.add(name);
-				}
-			}
-			if (!outside.has(tag.name)) continue;
+			let stop = t.firstImplicitEnd?.get(tag.name);
+			if (stop === undefined || stop > s.id) continue;
 			at = present.get(lastKept) ?? -1;
 		}
 		after.set(at, (after.get(at) ?? "") + `</${tag.name}>`);

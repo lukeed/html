@@ -746,6 +746,11 @@ describe("children", () => {
 				'<p class="x"><strong>Read the <a href=x>label</strong></a> rest.</p><h2>H</h2><p>more</p>',
 			],
 			[
+				"<svg><a/></a></svg>",
+				(d) => d.find("svg")?.setAttr("id", "x"),
+				'<svg id="x"><a/></a></svg>',
+			],
+			[
 				"<div><form>a</div></form><form id=f><input></form>",
 				(d) => d.find("div")?.setAttr("class", "x"),
 				'<div class="x"><form>a</div></form><form id=f><input></form>',
@@ -889,6 +894,17 @@ describe("children", () => {
 		doc.find("p")!.children[0].remove();
 		expect(mutable.stringify(doc)).toBe(
 			"<b><em>x</b><p></em><span>z</span></p>",
+		);
+	});
+
+	test("only earlier implicit closes qualify an outside opener", () => {
+		let doc = mutable.parse(
+			"<svg><a/></svg><a></a><p><span>x</span></a>y</p>" +
+				"<b><a>x</b><p><span>x</span></a>y</p>",
+		);
+		for (let span of doc.all("span")) span.remove();
+		expect(mutable.stringify(doc)).toBe(
+			"<svg><a/></svg><a></a><p>y</p><b><a>x</b><p></a>y</p>",
 		);
 	});
 

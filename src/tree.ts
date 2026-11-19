@@ -51,6 +51,8 @@ export type Tree = {
 	 * none. See {@link build}.
 	 */
 	strays: Map<number, Stray[]> | undefined;
+	/** First subtree stop of an implicitly closed tracked element, by name. */
+	firstImplicitEnd: Map<string, number> | undefined;
 };
 
 /** An ignored end tag, and the id of the node before it in the source. */
@@ -450,6 +452,7 @@ export function build(source: string, foreign?: boolean): Tree {
 	let contexts: boolean[] = [];
 	let owners: number[] = [];
 	let strays: Map<number, Stray[]> | undefined;
+	let firstImplicitEnd: Map<string, number> | undefined;
 	let text = 0;
 	let i = 0;
 
@@ -495,6 +498,12 @@ export function build(source: string, foreign?: boolean): Tree {
 		end[id] = at;
 		to[id] = inner;
 		stop[id] = size;
+		if (at === inner && TRACKED.has(names[id])) {
+			let name = names[id];
+			firstImplicitEnd ??= new Map();
+			// Stops never decrease as elements are popped.
+			if (!firstImplicitEnd.has(name)) firstImplicitEnd.set(name, size);
+		}
 		if (owners.length > 0 && owners[owners.length - 1] === id) {
 			owners.pop();
 			contexts.pop();
@@ -680,5 +689,6 @@ export function build(source: string, foreign?: boolean): Tree {
 		ranks: undefined,
 		foreign: base,
 		strays,
+		firstImplicitEnd: strays ? firstImplicitEnd : undefined,
 	};
 }

@@ -5,7 +5,7 @@ on:
     paths-ignore:
       - "*.md"
     branches:
-      - "**"
+      - main
     tags:
       - "v*"
   pull_request:
@@ -17,10 +17,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 jobs:
   check:
     name: Bun
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,6 +33,7 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.4
+          no-cache: true
 
       - run: bun install --frozen-lockfile
       - run: bun fmt --check
@@ -44,6 +50,7 @@ jobs:
     name: Node.js v${{ matrix.nodejs }}
     needs: check
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     strategy:
       matrix:
         nodejs: [22, 24, 26]
@@ -73,6 +80,7 @@ jobs:
     needs: [check, node]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write # npm trusted publishing, with provenance

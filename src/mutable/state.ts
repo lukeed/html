@@ -333,8 +333,9 @@ function added(s: State, entries: [string, string][], from: number): string {
  * The opening tag of `s`, ending in `/>` when `slash` is set. When attributes
  * were only added, the source tag is copied as written, plus the new ones.
  * Else the tag is rebuilt, and unedited attributes are copied as written.
+ * `bare` is {@link selfClosed} for `s`, which the caller already knows.
  */
-function open(s: State, slash: boolean): string {
+function open(s: State, slash: boolean, bare: boolean): string {
 	let t = s.tree;
 	let entries = Object.entries(attributes(s));
 	if (!t) return end("<" + s.name + added(s, entries, 0), slash);
@@ -346,7 +347,6 @@ function open(s: State, slash: boolean): string {
 		kept = entries[i][0] === list[2 * i] && entries[i][1] === list[2 * i + 1];
 	}
 
-	let bare = selfClosed(t, s);
 	let last = count > 0 ? list[list.length - 1] : undefined;
 	let extra = kept ? added(s, entries, count) : "";
 	if (kept && !(extra && last === "")) {
@@ -400,16 +400,17 @@ function unclosed(s: State, parent: State, next: State | undefined): boolean {
 	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return false;
 	let id = s.id;
 	if (t.to[id] !== t.end[id] || tree.VOID.has(s.name)) return false;
-	if (selfClosed(t, s) || s.source.charCodeAt(s.start + 1) === 47) return false;
 
 	let after = t.stop[id];
 	let sibling = after < t.kind.length && t.parent[after] === t.parent[id];
 	if (next) {
 		let same = next.tree === t && next.id === after;
-		return !(sibling && same && next.name === t.name[after]);
+		if (sibling && same && next.name === t.name[after]) return false;
+	} else if (ended(parent)) return false;
+	else if (!sibling && parent.tree === t && parent.id === t.parent[id]) {
+		return false;
 	}
-	if (ended(parent)) return false;
-	return sibling || parent.tree !== t || parent.id !== t.parent[id];
+	return !selfClosed(t, s) && s.source.charCodeAt(s.start + 1) !== 47;
 }
 
 /**
@@ -419,7 +420,7 @@ function unclosed(s: State, parent: State, next: State | undefined): boolean {
 function ended(s: State): boolean {
 	let t = s.tree;
 	if (s.kind !== "element" || !t || s.name !== t.name[s.id]) return true;
-	return selfClosed(t, s) || t.to[s.id] !== t.end[s.id];
+	return t.to[s.id] !== t.end[s.id] || selfClosed(t, s);
 }
 
 /**
@@ -509,12 +510,12 @@ export function serialize(s: State): string {
 			let own = t !== undefined && s.name === t.name[s.id];
 			if (t && own && !(bare && s.children.length > 0)) {
 				let head = s.changed
-					? open(s, bare)
+					? open(s, bare, bare)
 					: s.source.slice(s.start, t.from[s.id]);
 				return head + body + s.source.slice(t.to[s.id], s.end);
 			}
 			let tail = tree.VOID.has(s.name) ? "" : `</${s.name}>`;
-			return open(s, false) + body + tail;
+			return open(s, false, bare) + body + tail;
 		}
 	}
 }

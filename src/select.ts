@@ -464,7 +464,10 @@ export const matches: Matcher<Tree, number> = engine<Tree, number>({
  * Candidate element ids for `list`, in source order: only ids with a
  * matching tag when every selector names one, else `undefined`.
  */
-function candidates(t: Tree, list: Selector): readonly number[] | undefined {
+export function candidates(
+	t: Tree,
+	list: Selector,
+): readonly number[] | undefined {
 	let names = new Set<string>();
 	for (let rule of list) {
 		let last = rule.compounds[rule.compounds.length - 1];

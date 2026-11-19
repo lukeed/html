@@ -1,6 +1,7 @@
 import { escapeAttribute, escapeText } from "entities/escape";
 
 import * as select from "../select";
+import * as siblings from "../siblings";
 import * as tree from "../tree";
 import * as values from "../values";
 
@@ -24,7 +25,8 @@ export type State = {
 	start: number;
 	end: number;
 	name: string;
-	children: State[];
+	/** Unread children still match `tree`; use {@link children} to read them. */
+	children: State[] | undefined;
 	/** Frozen; replaced, never mutated. Read lazily from `tree` when unset. */
 	attrs: Readonly<Record<string, string>> | undefined;
 	/** Leaf value, decoded or set; read lazily from `tree` when unset. */
@@ -76,42 +78,119 @@ function create(kind: Kind, doc: State | undefined, name = ""): State {
 }
 
 /**
- * Materialize every node of `t` for `doc`.
- * Returns the top-level states, which have no parent yet.
+ * A state for node `id` of `t`, whose children are read on demand.
  */
-export function load(t: Tree, doc: State): State[] {
-	let states: State[] = [];
-	let top: State[] = [];
+function make(
+	t: Tree,
+	id: number,
+	doc: State,
+	parent: State | undefined,
+): State {
+	return {
+		kind: KINDS[t.kind[id]],
+		doc,
+		parent,
+		source: t.source,
+		tree: t,
+		id,
+		start: t.start[id],
+		end: t.end[id],
+		name: t.name[id],
+		children: undefined,
+		attrs: undefined,
+		value: undefined,
+		changed: false,
+		dirty: false,
+		view: undefined,
+	};
+}
 
-	for (let id = 1; id < t.kind.length; id++) {
-		let state: State = {
-			kind: KINDS[t.kind[id]],
-			doc,
-			parent: undefined,
-			source: t.source,
-			tree: t,
-			id,
-			start: t.start[id],
-			end: t.end[id],
-			name: t.name[id],
-			children: [],
-			attrs: undefined,
-			value: undefined,
-			changed: false,
-			dirty: false,
-			view: undefined,
-		};
-		states[id] = state;
+/**
+ * The children of `s`, made from its tree on first read. Until then, the
+ * children of `s` are exactly those in the tree, so nothing below `s` has a
+ * state yet.
+ */
+export function children(s: State): State[] {
+	let list = s.children;
+	if (list !== undefined) return list;
+	list = [];
+	let t = s.tree!;
+	let doc = docOf(s);
+	let stop = t.stop[s.id];
+	for (let id = s.id + 1; id < stop; id = t.stop[id]) {
+		list.push(make(t, id, doc, s));
+	}
+	s.children = list;
+	return list;
+}
 
-		let p = t.parent[id];
-		if (p === 0) top.push(state);
-		else {
-			state.parent = states[p];
-			states[p].children.push(state);
+/**
+ * The children of `s`, with every unread subtree below `s` made in one pass,
+ * so states that are read together are made together. A state with unread
+ * children has no states below it, so its subtree is copied straight from
+ * its tree. Leaves keep unread children.
+ */
+export function subtree(s: State): State[] {
+	let list = s.children;
+	if (list !== undefined) return list;
+	let t = s.tree!;
+	let doc = docOf(s);
+	let stop = t.stop[s.id];
+	let stack = [s];
+	s.children = [];
+	for (let id = s.id + 1; id < stop; id++) {
+		let p = stack[stack.length - 1];
+		while (p.id !== t.parent[id]) {
+			stack.pop();
+			p = stack[stack.length - 1];
+		}
+		let x = make(t, id, doc, p);
+		p.children!.push(x);
+		if (t.stop[id] > id + 1) {
+			x.children = [];
+			stack.push(x);
 		}
 	}
+	return s.children;
+}
 
+/**
+ * Top-level states of `t` for `doc`, which have no parent yet.
+ * Their children are read on demand.
+ */
+export function load(t: Tree, doc: State): State[] {
+	let top: State[] = [];
+	for (let id = 1; id < t.kind.length; id = t.stop[id]) {
+		top.push(make(t, id, doc, undefined));
+	}
 	return top;
+}
+
+/**
+ * The state of node `id` of `t`, a descendant of the last state in `chain`,
+ * where nothing below `chain[0]` was edited since its children were read.
+ * `chain` holds the states on the way down to the last one found; it is
+ * kept, so finding ids in source order makes each state once.
+ */
+function locate(t: Tree, chain: State[], id: number): State {
+	let at = chain[chain.length - 1];
+	while (chain.length > 1 && !(at.id < id && id < t.stop[at.id])) {
+		chain.pop();
+		at = chain[chain.length - 1];
+	}
+	while (at.id !== id) {
+		let list = children(at);
+		let lo = 0;
+		let hi = list.length - 1;
+		while (lo < hi) {
+			let mid = (lo + hi + 1) >> 1;
+			if (list[mid].id <= id) lo = mid;
+			else hi = mid - 1;
+		}
+		at = list[lo];
+		chain.push(at);
+	}
+	return at;
 }
 
 /**
@@ -128,10 +207,7 @@ export function document(source: string): State {
 	doc.changed = false;
 	doc.dirty = false;
 
-	for (let child of load(t, doc)) {
-		child.parent = doc;
-		doc.children.push(child);
-	}
+	doc.children = undefined;
 	return doc;
 }
 
@@ -149,6 +225,14 @@ export function value(s: State): string {
 export function text(s: State): string {
 	if (s.kind === "text") return value(s);
 	let output = "";
+	if (s.children === undefined) {
+		let t = s.tree!;
+		let stop = t.stop[s.id];
+		for (let id = s.id + 1; id < stop; id++) {
+			if (t.kind[id] === tree.TEXT) output += values.value(t, id);
+		}
+		return output;
+	}
 	for (let child of s.children) {
 		if (child.kind === "text") output += value(child);
 		else if (child.kind === "element") output += text(child);
@@ -163,14 +247,16 @@ function touch(s: State | undefined): void {
 function adopt(s: State, doc: State): void {
 	if (docOf(s) === doc) return;
 	s.doc = doc;
-	for (let child of s.children) adopt(child, doc);
+	// Children not read yet take the document of their parent when they are.
+	if (s.children) for (let child of s.children) adopt(child, doc);
 }
 
 export function detach(s: State): void {
 	let p = s.parent;
 	if (!p) return;
-	let at = p.children.indexOf(s);
-	if (at !== -1) p.children.splice(at, 1);
+	let list = children(p);
+	let at = list.indexOf(s);
+	if (at !== -1) list.splice(at, 1);
 	s.parent = undefined;
 	touch(p);
 }
@@ -192,9 +278,10 @@ export function insert(parent: State, index: number, items: State[]): void {
 		}
 	}
 
+	let list = children(parent);
 	let at = index;
 	for (let item of items) {
-		if (item.parent === parent && parent.children.indexOf(item) < at) at--;
+		if (item.parent === parent && list.indexOf(item) < at) at--;
 		detach(item);
 	}
 
@@ -203,7 +290,7 @@ export function insert(parent: State, index: number, items: State[]): void {
 		item.parent = parent;
 	}
 
-	parent.children.splice(at, 0, ...items);
+	list.splice(at, 0, ...items);
 	touch(parent);
 }
 
@@ -211,13 +298,23 @@ export function insert(parent: State, index: number, items: State[]): void {
  * A deep copy of `s` without a parent. Unedited parts still serialize from the source as written.
  */
 export function clone(s: State): State {
-	let copy: State = { ...s, parent: undefined, children: [], view: undefined };
+	let copy: State = {
+		...s,
+		parent: undefined,
+		children: undefined,
+		view: undefined,
+	};
 	let names = NAMES.get(s);
 	if (names) NAMES.set(copy, names);
-	for (let child of s.children) {
-		let next = clone(child);
-		next.parent = copy;
-		copy.children.push(next);
+	// Children not read yet are read from the same tree for the copy.
+	if (s.children) {
+		let list: State[] = [];
+		for (let child of s.children) {
+			let next = clone(child);
+			next.parent = copy;
+			list.push(next);
+		}
+		copy.children = list;
 	}
 	return copy;
 }
@@ -279,11 +376,11 @@ export function rename(s: State, input: string): void {
 		: lower === "image"
 			? "img"
 			: lower;
-	if (tree.VOID.has(name) && s.children.length > 0) {
+	if (tree.VOID.has(name) && children(s).length > 0) {
 		throw new TypeError(`Cannot rename <${s.name}> with children to <${name}>`);
 	}
 	let raw = !inside && tree.RAW.has(name);
-	if (raw && s.children.some((x) => x.kind === "element")) {
+	if (raw && children(s).some((x) => x.kind === "element")) {
 		throw new TypeError(
 			`Cannot rename <${s.name}> with child elements to <${name}>`,
 		);
@@ -310,7 +407,11 @@ export function setValue(s: State, input: string): void {
 }
 
 export function replaceChildren(s: State, items: State[]): void {
-	for (let child of [...s.children]) detach(child);
+	// Children not read yet have no states to detach. Else every child is
+	// detached at once, rather than one splice each.
+	if (s.children) for (let child of s.children) child.parent = undefined;
+	s.children = [];
+	touch(s);
 	insert(s, 0, items);
 }
 
@@ -442,7 +543,7 @@ function ended(s: State): boolean {
  */
 function content(s: State): string {
 	let output = "";
-	let list = s.children;
+	let list = children(s);
 	for (let i = 0; i < list.length; i++) {
 		let child = list[i];
 		output += serialize(child);
@@ -521,7 +622,7 @@ export function serialize(s: State): string {
 			let t = s.tree;
 			let body = content(s);
 			let bare = t !== undefined && selfClosed(t, s);
-			if (t && own(t, s) && !(bare && s.children.length > 0)) {
+			if (t && own(t, s) && !(bare && children(s).length > 0)) {
 				let head = s.changed
 					? open(s, bare, bare)
 					: s.source.slice(s.start, t.from[s.id]);
@@ -552,14 +653,41 @@ type Rank = {
 };
 
 /**
- * Sibling ranks for one query, built per family on first need, since edits
- * can follow. A single match scans siblings once, and ranks them only if it
- * looks again, so long lists are not indexed for one lookup.
+ * Where a query is. A node handle is a state, or the id of a node in `t`
+ * below `s`, whose descendants still mirror the tree, whether their states
+ * were read or not. Ids are matched without making states for them.
  */
-type Scope = { ranks: Map<State, Rank> | undefined; scanned: boolean };
+type Scope = {
+	t: Tree;
+	s: State;
+	/**
+	 * Sibling ranks of states, built per family on first need, since edits
+	 * can follow. A single match scans siblings once, and ranks them only if
+	 * it looks again, so long lists are not indexed for one lookup.
+	 */
+	ranks: Map<State, Rank> | undefined;
+	scanned: boolean;
+	/** The tree that `ids` are for. */
+	tagged: Tree | undefined;
+	/** The {@link select.candidates} of `tagged` for the query. */
+	ids: readonly number[] | undefined;
+};
+
+type Handle = State | number;
+
+function scope(s: State, ranks?: Map<State, Rank>): Scope {
+	return {
+		t: s.tree!,
+		s,
+		ranks,
+		scanned: ranks !== undefined,
+		tagged: undefined,
+		ids: undefined,
+	};
+}
 
 function family(s: State): State[] {
-	return s.parent ? s.parent.children : [s];
+	return s.parent ? children(s.parent) : [s];
 }
 
 function rank(c: Scope, s: State): Rank | undefined {
@@ -593,18 +721,25 @@ function rank(c: Scope, s: State): Rank | undefined {
 	return c.ranks.get(s)!;
 }
 
-const matcher = select.engine<Scope, State>({
-	name: (_, s) => s.name,
-	attr(_, s, key) {
-		let attrs = attributes(s);
+const matcher = select.engine<Scope, Handle>({
+	name: (c, n) => (typeof n === "number" ? c.t.name[n] : n.name),
+	attr(c, n, key) {
+		let attrs =
+			typeof n === "number" ? values.attributes(c.t, n) : attributes(n);
 		return Object.hasOwn(attrs, key) ? attrs[key] : undefined;
 	},
-	parent(_, s) {
-		let p = s.parent;
+	parent(c, n) {
+		let p: State | undefined;
+		if (typeof n === "number") {
+			let id = c.t.parent[n];
+			if (id !== c.s.id) return id;
+			p = c.s;
+		} else p = n.parent;
 		return p && p.kind === "element" ? p : undefined;
 	},
-	position(c, s, last, type) {
-		let r = rank(c, s);
+	position(c, n, last, type) {
+		if (typeof n === "number") return siblings.position(c.t, n, last, type);
+		let r = rank(c, n);
 		if (r) {
 			let at = type ? r.typeIndex : r.index;
 			let count = type ? r.typeCount : r.count;
@@ -612,33 +747,126 @@ const matcher = select.engine<Scope, State>({
 		}
 		let at = 0;
 		let count = 0;
-		for (let x of family(s)) {
-			if (x.kind !== "element" || (type && x.name !== s.name)) continue;
+		for (let x of family(n)) {
+			if (x.kind !== "element" || (type && x.name !== n.name)) continue;
 			count++;
-			if (x !== s) continue;
+			if (x !== n) continue;
 			if (!last) return count;
 			at = count;
 		}
 		return count - at + 1;
 	},
-	previous(c, s) {
-		let r = rank(c, s);
+	previous(c, n) {
+		if (typeof n === "number") {
+			let x = siblings.ranks(c.t, n).previous[n];
+			return x === 0 ? undefined : x;
+		}
+		let r = rank(c, n);
 		if (r) return r.previous;
-		let list = family(s);
-		let i = list.indexOf(s);
+		let list = family(n);
+		let i = list.indexOf(n);
 		while (--i >= 0 && list[i].kind !== "element");
 		return list[i];
 	},
-	empty(_, s) {
-		return !s.children.some((x) => x.kind === "element" || x.kind === "text");
+	empty(c, n) {
+		let t: Tree;
+		let id: number;
+		if (typeof n === "number") {
+			t = c.t;
+			id = n;
+		} else if (n.children === undefined) {
+			t = n.tree!;
+			id = n.id;
+		} else {
+			return !n.children.some((x) => x.kind === "element" || x.kind === "text");
+		}
+		for (let x = id + 1; x < t.stop[id]; x = t.stop[x]) {
+			if (t.kind[x] === tree.ELEMENT || t.kind[x] === tree.TEXT) return false;
+		}
+		return true;
 	},
 });
 
 export function matches(s: State, list: Selector): boolean {
-	return (
-		s.kind === "element" &&
-		matcher({ ranks: undefined, scanned: false }, s, list)
-	);
+	return s.kind === "element" && matcher(scope(s), s, list);
+}
+
+/** The first index in sorted `ids` with an id above `id`. */
+function after(ids: readonly number[], id: number): number {
+	let lo = 0;
+	let hi = ids.length;
+	while (lo < hi) {
+		let mid = (lo + hi) >> 1;
+		if (ids[mid] <= id) lo = mid + 1;
+		else hi = mid;
+	}
+	return lo;
+}
+
+/**
+ * Add descendant elements of `s` that match `list` to `output`, in source
+ * order, skipping the contents of `<template>` elements below `s`. The
+ * descendants of `s` still mirror its tree, even if their states were read.
+ * They are matched on the tree, and states are made only for matches.
+ */
+function scan(
+	c: Scope,
+	s: State,
+	list: Selector,
+	output: State[],
+	limit: number,
+): void {
+	let t = s.tree!;
+	c.t = t;
+	c.s = s;
+	let root = s.id;
+	let stop = t.stop[root];
+	if (stop === root + 1) return;
+	if (c.tagged !== t) {
+		c.tagged = t;
+		c.ids = select.candidates(t, list);
+	}
+	let ids = c.ids;
+	let chain = [s];
+
+	if (!ids) {
+		for (let id = root + 1; id < stop; id++) {
+			if (t.kind[id] !== tree.ELEMENT) continue;
+			if (matcher(c, id, list)) {
+				output.push(locate(t, chain, id));
+				if (output.length >= limit) return;
+			}
+			if (t.name[id] === "template") id = t.stop[id] - 1;
+		}
+		return;
+	}
+
+	let i = after(ids, root);
+	if (i === ids.length || ids[i] >= stop) return;
+	let templates = t.tags?.get("template") ?? [];
+	let k = after(templates, root);
+	let skip = 0;
+	for (; i < ids.length; i++) {
+		let id = ids[i];
+		if (id >= stop) break;
+		for (; k < templates.length && templates[k] < id; k++) {
+			let x = templates[k];
+			if (t.stop[x] > skip) skip = t.stop[x];
+		}
+		if (id < skip) continue;
+		if (matcher(c, id, list)) {
+			output.push(locate(t, chain, id));
+			if (output.length >= limit) return;
+		}
+	}
+}
+
+/**
+ * Whether the subtree of `s`, whose children were read, still mirrors its
+ * tree: edits mark every ancestor dirty, and reading states does not.
+ */
+function clean(s: State): boolean {
+	return !s.dirty && s.tree !== undefined;
 }
 
 /**
@@ -647,9 +875,13 @@ export function matches(s: State, list: Selector): boolean {
  */
 export function all(root: State, list: Selector, limit = Infinity): State[] {
 	let output: State[] = [];
-	let c: Scope = { ranks: new Map(), scanned: true };
-	let stack = [...root.children].reverse();
+	let c = scope(root, new Map());
+	if (root.children === undefined || clean(root)) {
+		scan(c, root, list, output, limit);
+		return output;
+	}
 
+	let stack = [...root.children].reverse();
 	for (let s = stack.pop(); s; s = stack.pop()) {
 		if (s.kind !== "element") continue;
 		if (matcher(c, s, list)) {
@@ -657,7 +889,13 @@ export function all(root: State, list: Selector, limit = Infinity): State[] {
 			if (output.length >= limit) break;
 		}
 		if (s.name === "template") continue;
-		for (let i = s.children.length - 1; i >= 0; i--) stack.push(s.children[i]);
+		let kids = s.children;
+		if (kids === undefined || clean(s)) {
+			scan(c, s, list, output, limit);
+			if (output.length >= limit) break;
+			continue;
+		}
+		for (let i = kids.length - 1; i >= 0; i--) stack.push(kids[i]);
 	}
 
 	return output;
